@@ -1,0 +1,583 @@
+\documentclass[11pt]{article}
+
+% ---------- packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black,citecolor=blue!55!black]{hyperref}
+
+% ---------- colors ----------
+\definecolor{accent}{HTML}{1F4E79}
+\definecolor{accent2}{HTML}{2E7D32}
+\definecolor{accent3}{HTML}{8E24AA}
+\definecolor{softgray}{HTML}{F2F4F7}
+\definecolor{kvcolor}{HTML}{E8F0FE}
+\definecolor{warmc}{HTML}{FFF3E0}
+
+% ---------- section styling ----------
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent!85!black}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.5em}{0.6em}
+
+% ---------- boxes ----------
+\newtcolorbox{buildbox}[1][]{
+  colback=kvcolor, colframe=accent, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Builds on / relation to the shortlist}, #1}
+
+\newtcolorbox{theorybox}[1][]{
+  colback=green!5, colframe=accent2, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Theory target}, #1}
+
+\newtcolorbox{expbox}[1][]{
+  colback=warmc, colframe=orange!70!black, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Minimal first experiment}, #1}
+
+\newtcolorbox{riskbox}[1][]{
+  colback=red!4, colframe=red!55!black, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Main risk \& mitigation}, #1}
+
+\newtcolorbox{claimbox}[1][]{
+  colback=accent3!8, colframe=accent3, boxrule=0.8pt, arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries, title={Central claim}, #1}
+
+\newcommand{\supp}{\operatorname{supp}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\term}[1]{\textbf{\color{accent!85!black}#1}}
+
+\begin{document}
+
+% ---------------- TITLE ----------------
+\begin{titlepage}
+\centering
+\vspace*{1.8cm}
+{\Huge\bfseries\color{accent} A Sparsity-First Research Agenda\par}
+\vspace{0.35cm}
+{\Large\bfseries\color{accent} for Collaborative Inference\par}
+\vspace{0.9cm}
+{\large Six projects bridging tensor / low-rank / sparsity methods with\par edge, federated, and multi-agent LLM systems\par}
+\vspace{1.6cm}
+\begin{tcolorbox}[colback=accent3!8,colframe=accent3,width=0.9\textwidth,arc=3pt]
+\centering\bfseries
+Thesis: collaborative inference for high-dimensional data should communicate
+\emph{intrinsic structure} --- low-rank factors and sparse innovations ---
+rather than dense intermediate tensors, and sparsity should be treated as a
+\emph{first-class semantic and scheduling resource}, not merely a way to send fewer bits.
+\end{tcolorbox}
+\vspace{1.4cm}
+\begin{tcolorbox}[colback=softgray,colframe=accent,width=0.9\textwidth,arc=3pt]
+\centering
+Each project is stated with a formal problem, a concrete method, a theoretical
+target, an evaluation protocol, its grounding in the reference papers, and its
+main risk. A crosswalk (\S\ref{sec:crosswalk}) shows how the earlier idea
+shortlist maps onto these six, and \S\ref{sec:prio} recommends a first project.
+\end{tcolorbox}
+\vfill
+{\normalsize Research prospectus \;\textbullet\; \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ================================================================
+\section{Executive summary}
+
+Nine reference papers cluster into three lines of work: (i) \textbf{edge / heterogeneous
+collaborative LLM inference} (HexGen~\cite{hexgen}, Jupiter~\cite{jupiter}, the FSU
+pipelined-inference poster~\cite{poster}); (ii) \textbf{offline-to-online and multi-agent
+RL} (BAQ~\cite{baq}, SADQ~\cite{sadq}, DARE~\cite{dare}, FOCI~\cite{foci}); and (iii)
+\textbf{federated learning and longitudinal multi-agent LLM systems}
+(SAA~\cite{saa}, the coaching paper~\cite{coaching}). A recurring pattern runs through all
+of them: a \emph{high-dimensional object is collapsed to a scalar or a dense tensor}, and
+the \emph{structure} of that object --- which coordinates changed, what is low-rank, what
+is a rare informative event --- is discarded. That discarded structure is exactly where a
+tensor / sparsity research program has leverage.
+
+This document develops six projects that each recover and exploit that structure:
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \textbf{SupportAlign} --- support-aware semi-asynchronous federated learning.
+\item \textbf{SparsePipe} --- co-adaptive sparse collaborative LLM inference.
+\item \textbf{LoSpar-CI} --- progressive low-rank-plus-sparse tensor inference \emph{(flagship)}.
+\item \textbf{SparseGraph-FOCI} --- learning the dynamic competitor graph.
+\item \textbf{Sparse successor-state models} for collaborative-inference control.
+\item \textbf{Sparse temporal tensor memory} for private longitudinal agents.
+\end{enumerate}
+
+The unifying move is to replace ``compress to save bits'' with ``represent by structure,''
+and to let that structure drive \emph{semantics} (which updates matter), \emph{timing}
+(when to aggregate), \emph{scheduling} (what to compute and transmit), and \emph{certification}
+(when a coarse answer is provably good enough).
+
+% ================================================================
+\section{Shared preliminaries and notation}
+\label{sec:prelim}
+
+\begin{description}[leftmargin=0pt,style=nextline,itemsep=2pt]
+\item[Dimension and sparsity] A model or signal lives in $\R^{p}$ (or a tensor in $\R^{N}$
+with $N=\prod_d n_d$). An update/vector is \emph{$s$-sparse} if it has at most $s$ nonzeros;
+its \term{support} is $\supp(x)=\{i:x_i\neq0\}$. The governing empirical fact is $s\ll p$.
+\item[Low-rank-plus-sparse] Many intermediate tensors decompose as $A=L+S+E$: a low-rank
+part $L$ (shared/global structure), a sparse part $S$ (rare informative events), and small
+residual noise $E$. This is the robust-PCA / stable principal component pursuit
+model~\cite{rpca}, lifted here to the tensor and streaming setting.
+\item[Tensor factorizations] $L$ can be encoded by CP, Tucker, or tensor-train (TT)
+factors~\cite{kolda,tt}; communication then scales with factor size, not ambient size $N$.
+\item[Sketches] CountSketch~\cite{countsketch} and MinHash~\cite{minhash} give $O(\log p)$-
+or $O(k)$-size summaries of high-dimensional vectors/supports that approximately preserve
+inner products and set overlaps; the Johnson--Lindenstrauss lemma~\cite{jl} preserves
+cosine similarity under random projection.
+\item[Reference short-names] HexGen~\cite{hexgen}, Jupiter~\cite{jupiter}, Poster~\cite{poster},
+FOCI~\cite{foci}, SAA~\cite{saa}, BAQ~\cite{baq}, SADQ~\cite{sadq}, DARE~\cite{dare},
+Coaching~\cite{coaching}.
+\end{description}
+
+% ================================================================
+\section{Crosswalk: earlier shortlist \texorpdfstring{$\rightarrow$}{->} these six}
+\label{sec:crosswalk}
+
+The six projects below are refinements of the earlier idea shortlist, sharpened around
+\emph{sparsity as the organizing principle}. The mapping:
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabular}{@{}p{3.4cm}p{3.3cm}p{4.6cm}p{2.3cm}@{}}
+\toprule
+\textbf{This project} & \textbf{Earlier shortlist item} & \textbf{Reference papers it extends} & \textbf{Cluster} \\
+\midrule
+1. SupportAlign & Sketched similarity-preserving federated aggregation & SAA~\cite{saa} $+$ DARE posterior~\cite{dare} & Federated \\
+2. SparsePipe & Compression-in-the-loop scheduling (activation axis) & Jupiter~\cite{jupiter}, HexGen~\cite{hexgen}, Poster~\cite{poster} & Edge inference \\
+3. LoSpar-CI \textbf{(flagship)} & Compression-in-the-loop scheduling (low-rank$+$sparse KV/activation), generalized & Poster~\cite{poster}, Jupiter~\cite{jupiter}, HexGen~\cite{hexgen} & Edge inference / tensor \\
+4. SparseGraph-FOCI & Beyond-mean-field low-rank Q $+$ tensor completion of competitor record & FOCI~\cite{foci} & Multi-agent RL \\
+5. Sparse successor models & Tensor-structured behavior / successor models & SADQ~\cite{sadq}, BAQ~\cite{baq}, DARE~\cite{dare} & O2O RL \\
+6. Sparse temporal memory & Longitudinal coaching tensor completion & Coaching~\cite{coaching} & LLM agents \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent The earlier ``integrative vision'' (an RL-driven, compression-aware controller)
+is not a separate project here; it is the \emph{endpoint} reached by composing projects
+2--5, and is stated as the agenda's central claim (\S\ref{sec:prio}).
+
+% ================================================================
+\section{SupportAlign: support-aware semi-asynchronous federated learning}
+\label{sec:supportalign}
+
+\subsection*{Context and gap}
+SAA~\cite{saa} showed that a client's \emph{influence} on federated aggregation is better
+predicted by cosine similarity between the current global model and the stale global model
+the client trained from than by round-count staleness, and it uses that similarity to set
+aggregation weights and buffer timing. But SAA computes cosine similarity on the
+\emph{full} $p$-dimensional model.
+
+\begin{claimbox}
+In a $p$-dimensional model with $s$-sparse updates, full-model cosine similarity is
+dominated by the overwhelming majority of \emph{unchanged} parameters. Two \emph{harmful}
+updates can therefore look almost identical --- their agreement is an artifact of the
+shared static bulk, not of the parts that actually changed.
+\end{claimbox}
+
+\subsection*{Core problem (formal)}
+Client $m$ contributes update $\Delta_m\in\R^{p}$ with support $\Omega_m=\supp(\Delta_m)$,
+$|\Omega_m|\le s$. Let $\Delta_g$ be the current global update with support $\Omega_g$.
+Ordinary cosine $\cos(\Delta_m,\Delta_g)$ is driven by coordinates in the complement of
+$\Omega_m\cup\Omega_g$ (where both are $\approx 0$), so it is uninformative about whether
+$\Delta_m$ \emph{helps or fights} the global direction on the coordinates that move.
+
+\subsection*{Proposed method}
+Represent each update by its support and its values on that support, and measure influence
+with three structure-aware components:
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+\item \textbf{Support overlap:} $J(\Omega_m,\Omega_g)=\frac{|\Omega_m\cap\Omega_g|}{|\Omega_m\cup\Omega_g|}$ (Jaccard), estimated from MinHash sketches.
+\item \textbf{Signed cosine on the intersecting support:}
+$\rho_{\cap}=\cos\!\big(\Delta_m|_{\Omega_m\cap\Omega_g},\,\Delta_g|_{\Omega_m\cap\Omega_g}\big)$ --- whether the client agrees \emph{where it matters}.
+\item \textbf{Off-support energy:} $\eta=\|\Delta_m|_{\Omega_g^{c}}\|_2\,/\,\|\Delta_m\|_2$ --- how much of the client's change lies \emph{outside} the global update support (novelty / drift).
+\end{enumerate}
+Communicate CountSketch/MinHash summaries rather than full supports or full vectors, so
+uplink cost scales with the sketch size, not $p$. Feed $(J,\rho_{\cap},\eta)$ into a
+\textbf{DARE-style posterior}~\cite{dare} that classifies each update as \emph{aligned},
+\emph{novel-but-useful}, or \emph{conflicting} (a three-class generalization of DARE's
+two-class Gaussian-posterior exchange rule). The class then sets \emph{both}:
+\begin{itemize}[leftmargin=1.5em,nosep]
+\item \textbf{Aggregation weights} (SAA-style~\cite{saa}): up-weight aligned; damp conflicting; treat novel-but-useful as exploration.
+\item \textbf{Aggregation timing}: trigger a buffer flush when the mix of classes destabilizes the global direction (the support-aware analogue of SAA's directional-similarity threshold).
+\end{itemize}
+
+\begin{theorybox}
+Make convergence / estimation error scale with $s\log p$ (the sparse effective dimension)
+plus an additive \emph{sketching-error} term and a \emph{staleness} term --- rather than
+with the ambient $p$. Concretely, target a bound of the form
+$\mathbb{E}\,[F(w^k)-F(w^\star)]\le \zeta^k(F(w^0)-F(w^\star)) + c_1\,\tfrac{s\log p}{n} + c_2\,\varepsilon_{\text{sketch}} + c_3\,\bar\tau$,
+recovering SAA's guarantee as the dense limit $s\!\to\!p$, $\varepsilon_{\text{sketch}}\!\to\!0$.
+\end{theorybox}
+
+\begin{expbox}
+Sparse linear regression ($p$ up to $10^5$, controllable $s$) with synthetic clients whose
+supports overlap by a tunable fraction: show that support-aware influence separates helpful
+from harmful updates when full-model cosine cannot, and that CountSketch summaries preserve
+the ranking. Then pruned-CNN / sparse-LoRA updates on FEMNIST and CIFAR.
+\end{expbox}
+
+\begin{riskbox}
+Sketch collisions could corrupt overlap/inner-product estimates for adversarial supports.
+Mitigate with multiple independent hashes (median-of-means), and fall back to exact
+support exchange for the (few) clients flagged high-influence.
+\end{riskbox}
+
+\begin{buildbox}
+Sharpens the earlier ``sketched, similarity-preserving federated aggregation'' idea:
+same sketching/JL backbone and SAA extension, but the key modification is that
+\emph{sparsity determines semantic influence and timing}, not merely transmitted bits ---
+and the DARE posterior gives a principled three-way classification.
+\end{buildbox}
+
+% ================================================================
+\section{SparsePipe: co-adaptive sparse collaborative LLM inference}
+\label{sec:sparsepipe}
+
+\subsection*{Context and gap}
+Jupiter~\cite{jupiter} and HexGen~\cite{hexgen} schedule \emph{dense} computation over the
+pipeline. But token, neuron, attention, and KV importance are highly \emph{non-uniform} and
+\emph{time-varying}: they differ by prompt, by layer, and by decoding step. Current work
+picks \emph{either} a sparse model \emph{or} a distributed layout; it does not co-design them.
+
+\subsection*{Core problem}
+Given a heterogeneous device set with time-varying bandwidth and load, jointly choose, at
+each pipeline boundary and decoding step, \emph{what to compute} and \emph{what to transmit}
+so as to meet latency/energy/memory budgets at a target accuracy --- treating sparsity as a
+\emph{schedulable resource} rather than a fixed model property.
+
+\subsection*{Proposed method}
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+\item \textbf{Predict} a hardware-friendly \emph{block-sparse} activation mask at each pipeline boundary (block granularity chosen for real kernel efficiency, not per-element).
+\item \textbf{Jointly choose} the layer partition (as in HexGen/Jupiter), the token budget, the active neuron blocks, the KV blocks to keep/transmit, and the encoding format.
+\item \textbf{Adapt the wire format:} send dense tensors when sparsity is low; switch to bitmap / block-index formats when sparsity is high (so index overhead never dominates).
+\item \textbf{Cost model with real overheads:} include actual sparse-kernel throughput and index/bitmap overhead --- not idealized FLOP savings --- so the optimizer never chooses ``sparsity'' that is slower in practice.
+\item \textbf{Online controller:} a lightweight policy re-plans when bandwidth, device load, or \emph{observed} sparsity drifts (see \S\ref{sec:successor} for a principled successor model of that drift).
+\item \textbf{Dense fallback:} preserve exact dense compute for coding, mathematics, or low-confidence outputs (mirroring Jupiter's pluggable/auto-selected outline decoding~\cite{jupiter}).
+\end{enumerate}
+The optimization objective is multi-term: time-to-first-token (TTFT), time-per-output-token
+(TPOT), energy, memory, accuracy, and optionally \emph{worst-device} latency (a fairness
+term borrowed from FOCI~\cite{foci}).
+
+\begin{theorybox}
+An accuracy-vs-sparsity guarantee per boundary: bound the output perturbation induced by a
+block-sparse mask via layer Lipschitz constants, and expose it as a constraint the scheduler
+must satisfy --- so the plan is chosen subject to a provable accuracy floor rather than a
+heuristic threshold.
+\end{theorybox}
+
+\begin{expbox}
+On the Poster's 3-device Jetson Orin cluster~\cite{poster} (or Jupiter's Jetson setup),
+add contextual activation/KV block-sparsity with an adaptive dense/bitmap wire format;
+measure TPOT and quality (GPT-judge on WizardLM/Vicuna) versus the dense pipeline at matched
+memory, and show the online controller recovers when one link is throttled mid-generation.
+\end{expbox}
+
+\begin{riskbox}
+Realized speedup from unstructured sparsity is often eaten by kernel and index overhead.
+Mitigate by committing to \emph{block} sparsity sized to the hardware and by putting measured
+kernel efficiency \emph{inside} the cost model, so unprofitable sparsity is never selected.
+\end{riskbox}
+
+\begin{buildbox}
+This is the ``activation axis'' of the earlier compression-in-the-loop scheduling idea:
+the distinctive contribution is treating sparsity as a \emph{time-varying scheduling
+resource} and co-designing it with the distributed layout, which neither Jupiter, HexGen,
+nor the Poster does.
+\end{buildbox}
+
+% ================================================================
+\section{LoSpar-CI: progressive low-rank-plus-sparse tensor inference (flagship)}
+\label{sec:lospar}
+
+This is the project most aligned with a tensor-research identity, and the one with the best
+chance of founding a recognizable line rather than another scheduling variant.
+
+\subsection*{Core assumption}
+An intermediate high-dimensional tensor at layer/stage $\ell$ decomposes as
+\[
+A_\ell \;=\; L_\ell \;+\; S_\ell \;+\; E_\ell,
+\]
+where $L_\ell$ is low-rank shared structure, $S_\ell$ contains rare informative events
+(sparse), and $E_\ell$ is small residual noise.
+
+\subsection*{Proposed system}
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+\item \textbf{Encode} $L_\ell$ with CP / Tucker / tensor-train factors~\cite{kolda,tt}; encode $S_\ell$ with support indices $+$ values.
+\item \textbf{Send coarse first:} transmit a coarse low-rank approximation of $A_\ell$ across the collaborating devices.
+\item \textbf{Compute-and-certify:} run the downstream prediction on the coarse tensor and compute an uncertainty / output-margin bound.
+\item \textbf{Refine on demand:} request additional sparse residual blocks of $S_\ell$ \emph{only if} the coarse prediction is not certifiably stable.
+\item \textbf{Joint selection:} choose rank, sparse budget, pipeline cut, and target device together (the LoSpar analogue of HexGen's placement search~\cite{hexgen}).
+\end{enumerate}
+
+\begin{theorybox}
+If the downstream map is Lipschitz and the output margin exceeds a function of the
+reconstruction error $\|A_\ell-(L_\ell+S_\ell)\|$, then the coarse prediction is
+\textbf{certifiably identical} to full dense inference --- no accuracy loss, only earlier
+stopping. Communication then scales as (factor size) $+\;k\log(N/k)$ for a $k$-sparse
+residual, rather than the ambient tensor size $N$.
+\end{theorybox}
+
+\subsection*{Best application domains}
+Ultra-high-dimensional signals where the $A=L+S+E$ model is physically justified:
+whole-slide pathology images; hyperspectral imagery; 3D medical volumes; multiview sensor
+networks; long video / scientific-simulation tensors.
+
+\subsection*{Positioning}
+Token-compression methods already shrink large-image inputs --- e.g. DTC-WSI~\cite{dtcwsi}
+for whole-slide images and SparseVLM~\cite{sparsevlm} for VLM token pruning --- but those
+prune tokens for a \emph{single} model. \emph{Progressive low-rank-plus-sparse transmission
+across heterogeneous collaborating devices, with a certified early-stop rule}, is
+materially different: the object communicated is intrinsic structure, and refinement is
+demand-driven and provably safe.
+
+\begin{claimbox}
+Collaborative inference for ultra-high-dimensional data should communicate intrinsic
+structure --- low-rank factors and sparse innovations --- rather than dense intermediate
+tensors.
+\end{claimbox}
+
+\begin{expbox}
+Pick \emph{one} modality (whole-slide images or hyperspectral), \emph{one} decomposition
+(e.g. tensor-train), \emph{one} progressive refinement rule (margin-based early stop), and a
+\emph{two- or three-device} prototype. Show communication reduction at zero (certified) or
+bounded accuracy loss versus dense transmission; report the fraction of inputs that stop at
+the coarse stage. Defer the scheduling/RL extension until this structural premise holds.
+\end{expbox}
+
+\begin{riskbox}
+The $A=L+S+E$ premise may hold weakly for some layers/modalities, weakening certified
+early-stop. Mitigate by measuring per-layer low-rank$+$sparse energy \emph{first} (a cheap
+empirical study) and applying LoSpar only where the spectrum justifies it, with dense
+fallback elsewhere.
+\end{riskbox}
+
+\begin{buildbox}
+Generalizes the earlier compression-in-the-loop idea from KV/activation compression to
+\emph{arbitrary high-dimensional intermediate tensors}, and adds the decisive new element:
+a \emph{certified, progressive} refinement rule rather than fixed-rate compression.
+\end{buildbox}
+
+% ================================================================
+\section{SparseGraph-FOCI: learning the dynamic competitor graph}
+\label{sec:sparsegraph}
+
+\subsection*{Context and gap}
+FOCI~\cite{foci} identifies potential competitors via a \emph{geographic perception radius}.
+In reality, only a sparse subset of nearby devices meaningfully competes for the same
+edge-resource pool, and physical proximity is a noisy proxy under mobility.
+
+\subsection*{Proposed method}
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+\item Model device interactions as a \textbf{dynamic sparse hypergraph}: devices are nodes; shared edge-resource pools are hyperedges.
+\item Infer the top-$s$ influential competitors of each device from anonymous resource-demand and action \emph{sketches} (privacy preserved, as in FOCI).
+\item Impose \textbf{temporal group sparsity} so the graph changes gradually unless evidence supports a structural change (a fused-lasso / group-lasso prior over time).
+\item Feed the learned sparse influence distribution into \textbf{mean-field MARL} in place of the geographic neighborhood.
+\item Retain FOCI's \textbf{max--min fairness oracle} for tail-QoS control.
+\end{enumerate}
+An optional extension recovers the earlier ``beyond mean-field'' idea: represent the joint
+action-value as a low-rank tensor over agents (mean-field $=$ the rank-1 term) and add a
+few low-rank components to capture pairwise contention; use low-rank tensor completion on
+the mobility-incomplete competitor record to denoise the statistic.
+
+\begin{theorybox}
+Replace FOCI's dependence on the full action-space dimension $\varphi$ (or total device
+count) with dependence on the \emph{effective degree} $s$, plus a graph-estimation-error
+term and a mobility-rate term --- i.e. re-derive the Serfling-style bound with $\lambda$
+instantiated as the learned sparse degree rather than a hand-set radius.
+\end{theorybox}
+
+\begin{riskbox}
+\textbf{Circularity:} actions determine contention, but the learned contention graph also
+determines actions. Mitigate with two-timescale learning (graph updated on a slower
+timescale than policies) or delayed graph updates, so the estimator sees a quasi-stationary
+action distribution.
+\end{riskbox}
+
+\begin{buildbox}
+Refines the earlier ``beyond-mean-field / tensor-completion-of-competitor-record'' idea into
+a sharper, sparsity-native form: the object learned is a \emph{sparse dynamic hypergraph},
+and the payoff is a bound governed by effective degree $s$ instead of ambient dimension.
+\end{buildbox}
+
+\begin{expbox}
+On FOCI's Porto-taxi $+$ Jetson-profile simulation~\cite{foci}: replace the perception
+radius with a learned top-$s$ competitor graph; show tighter worst-case latency/energy tails
+and better convergence, ablating the temporal-sparsity prior and the two-timescale schedule.
+\end{expbox}
+
+% ================================================================
+\section{Sparse successor-state models for collaborative-inference control}
+\label{sec:successor}
+
+\subsection*{Context and gap}
+SADQ~\cite{sadq} builds Q-targets from a \emph{diagonal-Gaussian} successor-state model.
+That model does not reflect high-dimensional \emph{system} states in which only a few
+components change between steps --- a device joins/leaves, a queue spikes, a link degrades,
+the active model changes. These are \emph{sparse, structured} transitions, not
+independent Gaussian jitter.
+
+\subsection*{Proposed transition model}
+Factor the successor distribution into \emph{which coordinates change} and \emph{their values}:
+\[
+P(s'\mid s,a)\;=\;\underbrace{P(\text{support change}\mid s,a)}_{\text{sparse Bernoulli / point process}}\;\cdot\;\underbrace{P(\text{values on support}\mid \text{support},s,a)}_{\text{conditional value model}} .
+\]
+The support-change factor can be a sparse Bernoulli model, a point process, or a structured
+diffusion model; the value factor predicts magnitudes only on the changed coordinates/fibers.
+For action selection, use \emph{pessimistic / quantile} aggregation over several predicted
+successors (rather than SADQ's max over imagined states), to avoid optimism on rare events.
+Train from system logs first, then relax conservatism online with BAQ/DARE-style behavior
+alignment~\cite{baq,dare}.
+
+\subsection*{Application and evaluation}
+Use the model to choose pipeline cuts, precision, sparse budgets (feeding SparsePipe,
+\S\ref{sec:sparsepipe}), device membership, and fallback policies. Evaluate on the metrics
+that matter for reliability, not average reward: \emph{tail} SLO violations, adaptation
+speed after failures, switching cost, and regret.
+
+\begin{theorybox}
+A variance-reduction result in the spirit of SADQ's Theorems 1--2~\cite{sadq}, but for the
+factored model: separating support prediction from value prediction lowers target variance
+on sparse transitions, and quantile aggregation controls the bias from rare high-impact
+events.
+\end{theorybox}
+
+\begin{riskbox}
+A learned support-change model can be unreliable in fast-changing or under-logged regimes
+(SADQ's own failure mode on short-horizon tasks). Mitigate by blending predicted successors
+with real ones via a learned confidence weight, defaulting to real transitions when the
+model is uncertain.
+\end{riskbox}
+
+\begin{buildbox}
+Specializes the earlier ``tensor-structured behavior / successor models'' idea to
+collaborative-inference control, with the concrete new form being the \emph{support-then-value}
+factorization of the transition kernel.
+\end{buildbox}
+
+% ================================================================
+\section{Sparse temporal tensor memory for private longitudinal agents}
+\label{sec:memory}
+
+\subsection*{Context and gap}
+The coaching paper~\cite{coaching} externalizes conversation state to fight ``lost in the
+middle,'' but treats each user in isolation. Longitudinal user state is naturally a
+\emph{sparse temporal tensor}
+\[
+\text{user}\;\times\;\text{goal}\;\times\;\text{barrier}\;\times\;\text{context}\;\times\;\text{time},
+\]
+most of whose entries are unchanged at any given turn.
+
+\subsection*{Proposed system}
+Maintain a structured, privacy-aware memory:
+\begin{itemize}[leftmargin=1.5em,nosep]
+\item a \textbf{low-rank component} for stable preferences and recurring patterns (shared archetypes);
+\item \textbf{sparse deltas} for new commitments, barriers, or health events (change detection);
+\item \textbf{device-local sensitive factors} that never leave the device;
+\item \textbf{edge-side anonymized shared factors} for cross-user structure;
+\item \textbf{query-dependent fiber retrieval}, so only the relevant slice of state reaches the LLM (bounded context, auditable coverage).
+\end{itemize}
+This connects tensor completion, sparse change detection, privacy, and collaborative LLM
+inference in one object: irregular engagement (missed sessions) is exactly the missing-data
+regime tensor completion handles.
+
+\begin{theorybox}
+Completion/recovery guarantees for the low-rank $+$ sparse temporal tensor under
+\emph{missing-not-at-random} engagement, bounding reconstruction error by observed-fiber
+count and archetype rank --- and a privacy statement for the device-local / edge-shared split.
+\end{theorybox}
+
+\begin{expbox}
+On multi-session coaching logs (or a simulated longitudinal cohort): measure dialogue
+continuity, missed-constraint rate, token cost, reconstruction error under withheld
+sessions, and privacy leakage of the shared factors --- versus the transcript-append and
+memory-only baselines from~\cite{coaching}.
+\end{expbox}
+
+\begin{riskbox}
+Low-rank archetypes risk over-generalizing across users (stereotyping) and could leak
+membership. Mitigate with per-user sparse deltas dominating the personalization signal and
+with differential-privacy noise on the shared factors.
+\end{riskbox}
+
+\begin{buildbox}
+Expands the earlier ``coaching tensor-completion'' idea with the low-rank$+$sparse split,
+on-device/edge privacy separation, and query-conditioned fiber retrieval.
+\end{buildbox}
+
+% ================================================================
+\section{Prioritization and recommended first project}
+\label{sec:prio}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.3}
+\small
+\begin{tabular}{@{}p{3.2cm}p{2.4cm}p{2.2cm}p{5.0cm}@{}}
+\toprule
+\textbf{Project} & \textbf{Strength} & \textbf{Cost} & \textbf{Best fit} \\
+\midrule
+SupportAlign & Theory-first & Modest & Cleanest math; sharpest ``sparsity $=$ semantics'' story \\
+SparsePipe & Systems/LLM & Higher (kernels) & Strongest systems paper; real speedups on edge clusters \\
+LoSpar-CI & Distinctive tensor & Medium & Best chance to found a recognizable research line \\
+SparseGraph-FOCI & MARL theory$+$sim & Medium & Effective-degree bound; needs stable MARL sim \\
+Sparse successor & RL reliability & Medium & Tail-SLO control; depends on SparsePipe as consumer \\
+Sparse temporal memory & Cross-cutting & Higher (data/privacy) & Broadest, but gated by longitudinal data access \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\textbf{Recommendations.}
+\begin{itemize}[leftmargin=1.5em,nosep]
+\item \textbf{Best theory-first project:} \emph{SupportAlign} --- a clean mathematical problem, modest implementation, and an unambiguous distinction from ordinary gradient compression.
+\item \textbf{Best systems / LLM project:} \emph{SparsePipe} --- directly extends Jupiter/HexGen/the Poster with measurable speedups.
+\item \textbf{Best distinctive tensor-and-sparsity project:} \emph{LoSpar-CI} --- the one most likely to establish a recognizable line rather than another scheduling variant.
+\end{itemize}
+
+\begin{claimbox}
+LoSpar-CI carries the agenda's sharp thesis: \emph{collaborative inference for
+ultra-high-dimensional data should communicate intrinsic structure --- low-rank factors and
+sparse innovations --- rather than dense intermediate tensors.} A manageable first paper
+fixes one modality (e.g. whole-slide or hyperspectral), one decomposition, one progressive
+refinement rule, and a two-/three-device prototype; the scheduling/RL extensions
+(SparsePipe, Sparse successor) follow once the structural premise is empirically established.
+\end{claimbox}
+
+% ================================================================
+\begin{thebibliography}{99}
+\small
+\bibitem{hexgen} Y.~Jiang et al. \emph{HexGen: Generative Inference of LLM over Heterogeneous Environment.} ICML 2024; arXiv:2311.11514.
+\bibitem{jupiter} S.~Ye et al. \emph{Jupiter: Fast and Resource-Efficient Collaborative Inference of Generative LLMs on Edge Devices.} IEEE INFOCOM 2025; arXiv:2504.08242.
+\bibitem{poster} H.~Zhou and X.~Zhang. \emph{Poster: Distributed Pipelined Collaborative Inference for LLMs on Edge Device Clusters.} ACM HotMobile 2026.
+\bibitem{foci} H.~Zhou and X.~Zhang. \emph{Fairness-Oracular MARL with Competitor-Aware Signals for Collaborative Inference.} NeurIPS 2025 Workshop (AI4NextG).
+\bibitem{saa} H.~Zhou, J.~Fu, Y.~Yuan, L.~Guo, X.~Zhang. \emph{Similarity-Guided Rapid Deployment of Federated Intelligence over Heterogeneous Edge Computing.} IEEE INFOCOM 2025.
+\bibitem{baq} L.~Zu, H.~Zhou, X.~Zhang. \emph{Behavior-Adaptive Q-Learning: A Unifying Framework for Offline-to-Online RL.} arXiv:2511.03695, 2025.
+\bibitem{sadq} L.~Zu, H.~Zhou, X.~Zhang. \emph{Enhancing Q-Value Updates in Deep Q-Learning via Successor-State Prediction.} arXiv:2511.03836, 2025.
+\bibitem{dare} L.~Zu, Y.~Qian, S.~Chakraborty, X.~Zhang. \emph{From Static Constraints to Dynamic Adaptation: Sample-Level Constraint Relaxation for Offline-to-Online RL (DARE).} ICML 2026; arXiv:2511.03828.
+\bibitem{coaching} H.~Zhou et al. \emph{LLM-based Multi-Agent Coaching for Longitudinal Behavior Change: Multi-Scale Summaries and Dialogue Steering.} Smart Health, 2026.
+\bibitem{rpca} E.~J.~Cand\`es, X.~Li, Y.~Ma, J.~Wright. \emph{Robust Principal Component Analysis?} J.~ACM, 2011.
+\bibitem{kolda} T.~G.~Kolda and B.~W.~Bader. \emph{Tensor Decompositions and Applications.} SIAM Review, 2009.
+\bibitem{tt} I.~V.~Oseledets. \emph{Tensor-Train Decomposition.} SIAM J.~Sci.~Comput., 2011.
+\bibitem{countsketch} M.~Charikar, K.~Chen, M.~Farach-Colton. \emph{Finding Frequent Items in Data Streams (CountSketch).} ICALP 2002.
+\bibitem{minhash} A.~Z.~Broder. \emph{On the Resemblance and Containment of Documents (MinHash).} SEQUENCES 1997.
+\bibitem{jl} W.~B.~Johnson and J.~Lindenstrauss. \emph{Extensions of Lipschitz Mappings into a Hilbert Space.} 1984.
+\bibitem{dtcwsi} \emph{DTC-WSI: dynamic token compression for whole-slide-image analysis.} (representative token-compression work for gigapixel pathology).
+\bibitem{sparsevlm} \emph{SparseVLM: visual token sparsification for efficient vision-language-model inference.}
+\end{thebibliography}
+
+\end{document}

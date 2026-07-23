@@ -1,0 +1,31 @@
+# ---- LaTeX build artifacts ----
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+kvsurvey.*.log
+
+# ---- backup / superseded variants ----
+*.pre-review.pdf
+*.pre-review.tex
+*.pre-hybrid-update.pdf
+*.pre-hybrid-update.tex
+
+# ---- third-party copyrighted paper PDFs (do NOT redistribute; matched at any depth) ----
+BEHAVIOR-ADAPTIVE Q-LEARNING- A UNIFYING FRAMEWORK FOR OFFLINE-TO-ONLINE RL.pdf
+Enhancing Q-Value Updates in Deep Q-Learning via Successor-State Prediction.pdf
+Fairness_Oracular_MARL_with.pdf
+From Static to Dynamic- Enhancing Offline-to-Online Reinforcement Learning via Energy-Guided Diffusion Stratification.pdf
+HEXGEN- Generative Inference of Large Language Model over Heterogeneous Environment.pdf
+Jupiter- Fast and Resource-Efficient Collaborative Inference of Generative LLMs on Edge Devices.pdf
+LLM-based multi-agent coaching for longitudinal behavior change_ Multi-scale summaries and dialogue steering - ScienceDirect.pdf
+Poster- Distributed Pipelined Collaborative Inference for LLMs on Edge Device Clusters.pdf
+Similarity-Guided Rapid Deployment of Federated Intelligence over Heterogeneous Edge Computing.pdf
+
+# ---- macOS ----
+.DS_Store

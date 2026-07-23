@@ -1,0 +1,385 @@
+\documentclass[11pt]{article}
+
+% ---------- packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb,amsthm}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,fit,backgrounds,calc}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!55!black,citecolor=blue!55!black]{hyperref}
+
+% ---------- colors ----------
+\definecolor{accent}{HTML}{0B4F6C}
+\definecolor{accent2}{HTML}{2E7D32}
+\definecolor{accent3}{HTML}{B23A00}
+\definecolor{softgray}{HTML}{F2F4F7}
+\definecolor{coolc}{HTML}{E6F2F5}
+\definecolor{warmc}{HTML}{FFF3E0}
+
+% ---------- section styling ----------
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent!85!black}}{\thesubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{1.5em}{0.6em}
+
+% ---------- boxes ----------
+\newtcolorbox{motivebox}[1][]{
+  colback=coolc, colframe=accent, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Motivation in one paragraph}, #1}
+\newtcolorbox{theorybox}[1][]{
+  colback=green!5, colframe=accent2, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Theory target}, #1}
+\newtcolorbox{claimbox}[1][]{
+  colback=accent3!8, colframe=accent3, boxrule=0.8pt, arc=2pt,
+  left=8pt,right=8pt,top=6pt,bottom=6pt,
+  fonttitle=\bfseries, title={Distinctive claim}, #1}
+\newtcolorbox{riskbox}[1][]{
+  colback=red!4, colframe=red!55!black, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt,
+  fonttitle=\bfseries, title={Main risk \& mitigation}, #1}
+
+\newcommand{\term}[1]{\textbf{\color{accent!85!black}#1}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\E}{\mathbb{E}}
+
+\begin{document}
+
+% ---------------- TITLE ----------------
+\begin{titlepage}
+\centering
+\vspace*{1.7cm}
+{\Huge\bfseries\color{accent} SparsePipe\par}
+\vspace{0.4cm}
+{\Large\bfseries\color{accent} Co-Adaptive Sparse Collaborative LLM Inference\par}
+\vspace{0.5cm}
+{\large Treating sparsity as a time-varying scheduling resource across a\\ heterogeneous device pipeline\par}
+\vspace{1.6cm}
+\begin{tcolorbox}[colback=accent3!8,colframe=accent3,width=0.92\textwidth,arc=3pt]
+\centering\bfseries
+Existing systems schedule \emph{dense} computation, and existing sparsity/KV-compression
+methods fix one operating point on \emph{one} device. SparsePipe makes the compression
+level a \emph{control variable} chosen per pipeline boundary and per decoding step ---
+jointly with the layer partition --- under a live bandwidth, load, and accuracy budget,
+with a dense fallback.
+\end{tcolorbox}
+\vspace{1.2cm}
+\begin{tcolorbox}[colback=softgray,colframe=accent,width=0.92\textwidth,arc=3pt]
+\centering
+This document gives the motivation, the related work with references, the method, an
+explicit comparison with extreme single-device KV-cache compression (Lexico, KIVI, H2O,
+Palu, ShadowKV, \dots), the theory targets, and an evaluation plan.
+\end{tcolorbox}
+\vfill
+{\normalsize Research proposal \;\textbullet\; \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ================================================================
+\section{Motivation}
+
+\begin{motivebox}
+Token, neuron, attention-head, and key/value (KV) importance in an LLM are highly
+\emph{non-uniform} and \emph{time-varying}: they change with the prompt, the layer, and the
+decoding step. Collaborative-inference systems such as Jupiter~\cite{jupiter} and
+HexGen~\cite{hexgen} nonetheless schedule \emph{dense} computation and transmit \emph{dense}
+activations across the device pipeline. Meanwhile, the large literature on activation
+sparsity and KV-cache compression fixes a single operating point on a \emph{single} device.
+Nobody treats sparsity as a \emph{schedulable resource} that a distributed runtime can spend
+--- more where the link is slow or the device is loaded, less where accuracy is at
+risk --- jointly with the pipeline partition. SparsePipe fills exactly this gap.
+\end{motivebox}
+
+\subsection{Three facts that create the opportunity}
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+\item \term{Sparsity is contextual and dynamic.} Contextual-sparsity work (e.g.\
+Deja~Vu~\cite{dejavu}) shows that, for a given input, only a small, input-dependent subset
+of attention heads and MLP neurons materially affects the output at each layer --- and that
+subset is \emph{predictable} cheaply from the current hidden state. KV importance is
+similarly skewed: a few ``heavy-hitter'' tokens dominate attention~\cite{h2o}, and
+importance narrows with depth~\cite{pyramidkv}.
+\item \term{The bottleneck at the edge is the link, not the FLOPs.} In pipelined edge
+inference~\cite{poster,jupiter}, each stage passes an activation to the next stage over an
+ordinary LAN. When bandwidth is scarce or a device is thermally throttled, \emph{what must
+cross the boundary} dominates latency. Sparsity that reduces transmission volume is
+therefore worth more, and worth \emph{differently}, at different boundaries and moments.
+\item \term{Heterogeneity is the norm.} Devices differ in compute, memory, power state, and
+link speed~\cite{hexgen,foci}. A one-size operating point wastes strong, well-connected
+devices and overloads weak ones. The right sparsity level is a \emph{per-device, per-step}
+decision.
+\end{enumerate}
+
+\subsection{The gap in one sentence}
+Current work chooses \emph{either} a sparse model \emph{or} a distributed layout; SparsePipe
+\emph{co-designs} them --- so the sparsity pattern, the wire format, and the layer partition
+are decided together, online, against a system-level objective.
+
+% ================================================================
+\section{Background and related work}
+
+\subsection{Collaborative / heterogeneous LLM inference}
+\term{HexGen}~\cite{hexgen} serves a 70B model across a heterogeneous, cross-datacenter GPU
+pool via \emph{asymmetric parallelism} (each pipeline stage may hold a different number of
+layers and a different tensor-parallel degree), choosing the layout with a validated
+analytic cost model and a two-phase search. \term{Jupiter}~\cite{jupiter} targets edge
+Jetson clusters, argues pipeline parallelism beats tensor/sequence parallelism on
+low-bandwidth LANs, and introduces intra-sequence pipelining plus speculative and
+outline-based decoding. The \term{FSU pipelined-inference poster}~\cite{poster} partitions a
+model by layers across three Jetson Orin Nanos so each device keeps its own KV cache in fast
+memory, avoiding CPU$\leftrightarrow$GPU swapping (40\% faster end to end).
+\emph{All three schedule dense computation}; none treats sparsity as a scheduling variable.
+\term{FOCI}~\cite{foci} adds max--min fairness for resource allocation across mobile devices
+--- the source of SparsePipe's optional worst-device-latency objective term.
+
+\subsection{Contextual activation sparsity}
+\term{Deja~Vu}~\cite{dejavu} predicts, from the current hidden state, which heads and neurons
+are active and skips the rest, achieving large speedups without accuracy loss. SparsePipe
+adopts the \emph{predictability} of contextual sparsity but shifts the decision from ``skip
+to save FLOPs on one GPU'' to ``skip/transmit to satisfy a distributed schedule.''
+
+\subsection{Extreme KV-cache compression (the family SparsePipe is contrasted with)}
+These reduce KV memory or attention cost \emph{on a single device}:
+\begin{itemize}[leftmargin=1.5em,itemsep=1pt]
+\item \term{Quantization:} KIVI~\cite{kivi} (tuning-free asymmetric 2-bit: per-channel keys,
+per-token values); Coupled Quantization~\cite{cq} (couples channels to reach $\sim$1 bit/channel).
+\item \term{Token eviction / attention sparsity:} H2O~\cite{h2o} (keep recent + heavy-hitter
+tokens); SnapKV~\cite{snapkv} (prefill-time selection via an observation window);
+PyramidKV~\cite{pyramidkv} (more budget in lower layers); Quest~\cite{quest} (query-aware
+page selection, loads only top-$K$ critical pages).
+\item \term{Low-rank KV:} Palu~\cite{palu} (low-rank projection of the KV latent, reconstruct
+on the fly, $\sim$50\% compression); ShadowKV~\cite{shadowkv} (low-rank keys on GPU, values
+offloaded to CPU).
+\item \term{Sparse coding / dictionary:} \term{Lexico}~\cite{lexico} --- the closest in
+spirit --- represents each cached key/value as a \emph{sparse} combination of atoms from a
+frozen \emph{universal} overcomplete dictionary ($\sim$4096 atoms, learned once), found by
+Orthogonal Matching Pursuit (OMP); stores $\sim$8 nonzero 8-bit coefficients per token,
+reaching \textbf{15--25\% of the FP16 cache at 90--95\% of full-cache accuracy}, degrading
+more gracefully than 2-bit quantization below its floor.
+\item \term{Merging:} CaM~\cite{cam} fuses to-be-evicted KV into retained entries.
+\end{itemize}
+Section~\ref{sec:vslexico} makes the comparison with this family explicit; the key point is
+that these are \emph{single-device compression primitives}, whereas SparsePipe is a
+\emph{distributed scheduling layer} that can \emph{invoke} them.
+
+% ================================================================
+\section{Method}
+\label{sec:method}
+
+\subsection{System model and notation}
+A model of $L$ decoder layers is partitioned into $P$ pipeline stages placed on
+heterogeneous devices $\{d_1,\dots,d_P\}$. A \term{partition} $\pi=(b_1,\dots,b_{P-1})$ sets
+the stage boundaries (layer indices). At boundary $p$ and decoding step $t$, stage $p$
+produces an activation tensor $X_{p,t}\in\R^{b\times h\times H}$ (batch $b$, heads $h$,
+hidden $H$) plus KV updates, and must forward what stage $p{+}1$ needs. Each device has a
+time-varying compute rate $c_p(t)$, memory $M_p$, and each link a bandwidth $B_p(t)$.
+
+\subsection{Component 1 --- block-sparse mask prediction at each boundary}
+At boundary $p$, a lightweight predictor $g_{\theta_p}$ maps the current hidden state to a
+\term{hardware-friendly block-sparse mask}
+\[
+m_{p,t} = g_{\theta_p}(X_{p,t}) \in \{0,1\}^{n_{\text{blk}}},
+\]
+selecting which \emph{blocks} of tokens, neurons/FFN channels, attention computations, and KV
+entries are retained. Block (not per-element) granularity is chosen so that the induced
+sparse kernels are actually fast on the target hardware and the index overhead stays small.
+The predictor is the distributed analogue of Deja~Vu's~\cite{dejavu} sparsity predictor.
+
+\subsection{Component 2 --- the joint scheduling problem}
+At each step the runtime chooses, \emph{together}: the partition $\pi$, a per-boundary token
+budget $\tau_p$, the active neuron/KV blocks (via $m_{p,t}$), and the wire format $f_p$. Let
+$\sigma$ denote this joint plan. The objective is multi-term:
+\[
+\min_{\sigma}\;\;
+\alpha\,\underbrace{\text{TTFT}(\sigma)}_{\text{prefill latency}}
++\beta\,\underbrace{\text{TPOT}(\sigma)}_{\text{time/token}}
++\gamma\,\text{Energy}(\sigma)
++\delta\,\text{Mem}(\sigma)
++\epsilon\,\underbrace{\max_p \text{Lat}_p(\sigma)}_{\text{worst device (opt.)}}
+\quad\text{s.t.}\quad
+\text{AccErr}(\sigma)\le \rho .
+\]
+The last constraint is an \emph{accuracy floor} (Component~6); the worst-device term borrows
+FOCI's fairness view~\cite{foci}.
+
+\subsection{Component 3 --- adaptive wire format}
+Transmission volume is not just a function of how many values survive; it is
+\emph{format-dependent}. SparsePipe switches format by the realized sparsity level $s_p$:
+\[
+f_p =
+\begin{cases}
+\text{dense tensor}, & s_p \text{ low (index overhead not worth it)},\\
+\text{bitmap / block-index + values}, & s_p \text{ high}.
+\end{cases}
+\]
+The crossover is where the index/bitmap bytes equal the values saved --- computed from the
+block size and the current $s_p$, not assumed.
+
+\subsection{Component 4 --- a cost model with \emph{real} overheads}
+The scheduler predicts latency/energy from measured \emph{sparse-kernel throughput} and
+\emph{index/bitmap overhead}, not idealized FLOP counts:
+\[
+\text{Lat}_p(\sigma) = \underbrace{T^{\text{comp}}_p\big(m_{p,t},c_p(t)\big)}_{\text{profiled sparse-kernel time}}
++\underbrace{\frac{\text{Bytes}(f_p,m_{p,t})}{B_p(t)}}_{\text{transmission}} .
+\]
+Because measured kernel efficiency is inside the model, the optimizer never chooses
+``sparsity'' that is slower in practice --- the central failure mode of unstructured
+sparsity.
+
+\subsection{Component 5 --- lightweight online controller}
+Bandwidth, device load, and observed sparsity drift during a generation. A small controller
+(bandit or short-horizon MPC; optionally the sparse successor-state model of the companion
+agenda) re-plans $\sigma$ when the state moves, amortizing planning over many steps as in
+Jupiter/HexGen but reacting \emph{online}.
+
+\subsection{Component 6 --- dense fallback and the accuracy floor}
+For coding, mathematics, or low-confidence outputs, SparsePipe reverts to exact dense compute
+(mirroring Jupiter's pluggable outline decoding~\cite{jupiter}). More generally, the floor is
+enforced per boundary: bounding the output perturbation induced by a mask through the layer's
+Lipschitz constant lets the scheduler treat accuracy as a \emph{constraint} rather than a
+hope.
+
+\begin{theorybox}
+Per-boundary accuracy guarantee: if layer $p{+}1{:}L$ is $\kappa$-Lipschitz and the masked
+activation satisfies $\|X_{p,t}-\hat X_{p,t}\|\le \eta_p$, then the output perturbation is at
+most $\kappa\prod_{q>p}(\cdot)\,\eta_p$; the scheduler admits only plans whose aggregate bound
+stays below $\rho$. Target: an end-to-end statement that SparsePipe meets a latency/energy
+budget at a \emph{certified} accuracy floor, recovering dense inference when $\rho\to 0$.
+\end{theorybox}
+
+% ================================================================
+\section{Advantage over extreme single-device KV compression (Lexico et al.)}
+\label{sec:vslexico}
+
+The whole taxonomy of \S2.3 --- Lexico~\cite{lexico}, KIVI~\cite{kivi}, H2O~\cite{h2o},
+Palu~\cite{palu}, ShadowKV~\cite{shadowkv}, \dots --- compresses the KV cache \emph{in place
+on one accelerator} to fit VRAM or cut attention cost. SparsePipe operates on a different
+axis. The contrasts below are the defensible core of the proposal.
+
+\begin{enumerate}[leftmargin=1.6em,itemsep=3pt]
+\item \term{Scheduled vs.\ fixed operating point.} Lexico fixes the sparsity level $s$
+offline; KIVI fixes a bit-width; H2O fixes a token budget. Even the ``dynamic'' methods
+(PyramidKV across layers, Quest per query) adapt only \emph{within one device's attention
+computation}. SparsePipe chooses the compression level \emph{per boundary and per decoding
+step} as the output of a scheduler driven by live bandwidth, load, and an accuracy budget ---
+the ratio is a decision, not a hyperparameter.
+
+\item \term{Communication-aware vs.\ communication-blind.} Every method in the family
+optimizes memory footprint or attention latency on \emph{one} GPU; none has a notion of an
+inter-device link whose bandwidth is the bottleneck. For them, sparsity never trades against
+\emph{what must be transmitted}. SparsePipe makes sparsity directly reduce
+activation/KV \emph{transmission volume} across the partition boundary, coupled to the
+measured link bandwidth.
+
+\item \term{Partition- and heterogeneity-aware.} None of these methods decides where the
+model is cut or which device does what. SparsePipe makes the layer partition and the sparsity
+schedule \emph{jointly}: a throttled device can be given a lighter, sparser share and the
+boundary can move --- a decision that is meaningless in a single-device compressor.
+
+\item \term{Accuracy floor as a lever, not a fixed loss.} For Lexico accuracy falls
+monotonically as $s$ drops; for KIVI/CQ there is a hard bit-floor. The loss is a property of
+the fixed setting. SparsePipe ties the accuracy floor to a scheduling decision with a dense
+fallback, so the accuracy--latency point is chosen online and worst-case error is bounded
+(Component~6).
+
+\item \term{Multi-modal vs.\ KV-only sparsity.} The family sparsifies \emph{one} object: the
+KV cache. SparsePipe schedules \emph{token, neuron/FFN, attention, and KV} sparsity together,
+so ``drop these neurons on the weak device this step'' or ``send only these tokens'
+activations across the slow link'' become expressible.
+
+\item \term{Closed-loop vs.\ committed offline.} Lexico's dictionary is trained once offline,
+and KIVI, H2O, and SnapKV commit to a policy before serving. SparsePipe is an online
+controller reacting to per-step system state (queue depth, link, remaining budget).
+\end{enumerate}
+
+\begin{claimbox}
+SparsePipe does not compete with Lexico at Lexico's own metric --- it \emph{subsumes} it as a
+primitive. Any single-device compressor (Lexico, KIVI, Palu) can be the operator the scheduler
+invokes on the KV that must cross a boundary. The novelty is the \emph{scheduling layer} that
+makes compression bandwidth-, partition-, and load-aware with a dense fallback. Positioning
+SparsePipe as \emph{orthogonal and composable} is both stronger and harder to attack than
+claiming to beat Lexico on compression ratio.
+\end{claimbox}
+
+\begin{center}
+\renewcommand{\arraystretch}{1.28}
+\small
+\begin{tabular}{@{}p{4.7cm}cc@{}}
+\toprule
+\textbf{Capability} & \textbf{Lexico / KIVI / H2O / Palu} & \textbf{SparsePipe} \\
+\midrule
+Compression ratio adapts per step & no (fixed offline) & \textbf{yes (scheduled)} \\
+Aware of inter-device bandwidth & no & \textbf{yes} \\
+Chooses layer partition / device & no & \textbf{yes} \\
+Accuracy floor is a runtime lever & no (fixed loss) & \textbf{yes (+ dense fallback)} \\
+Sparsity modalities & KV only & \textbf{token/neuron/attn/KV} \\
+Online closed-loop controller & no & \textbf{yes} \\
+Can invoke the others as a primitive & --- & \textbf{yes (composable)} \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\noindent\emph{Reviewer pre-emption.} ShadowKV~\cite{shadowkv} is the one family member that
+touches the memory hierarchy (GPU$\leftrightarrow$CPU value offload), so it may be raised as
+prior art for ``distribution.'' It is single-node offload with a \emph{fixed} policy --- not
+bandwidth-adaptive scheduling across a heterogeneous multi-device pipeline with a movable
+partition. Contrasts~2 and~3 are where SparsePipe's defensibility lives.
+
+% ================================================================
+\section{Evaluation plan}
+
+\begin{itemize}[leftmargin=1.5em,itemsep=2pt]
+\item \term{Testbed:} the 3-device Jetson Orin cluster of the poster~\cite{poster} or
+Jupiter's Jetson setup~\cite{jupiter}; throttle a link mid-generation to test the online
+controller.
+\item \term{Models / tasks:} Llama-3.2-3B / Llama-2-7B; LongBench and GSM8K (the Lexico
+benchmarks, for a like-for-like accuracy axis) plus WizardLM/Vicuna with GPT-judge quality.
+\item \term{Baselines:} dense pipeline (poster/Jupiter); \emph{single-device} compressors
+applied per stage (Lexico, KIVI, H2O) to show SparsePipe's scheduling adds value \emph{on top
+of} them; a static-sparsity ablation (fixed ratio, no controller).
+\item \term{Metrics:} TTFT, TPOT, energy, peak memory, accuracy, worst-device latency; and
+the fraction of steps that fall back to dense.
+\item \term{Ablations:} remove the online controller; remove adaptive wire format; remove the
+joint partition (fix $\pi$); KV-only vs.\ multi-modal sparsity.
+\end{itemize}
+
+\begin{riskbox}
+Realized speedup from sparsity is often eaten by kernel and index overhead. Mitigate by
+committing to \emph{block} sparsity sized to the hardware and by putting measured kernel
+efficiency \emph{inside} the cost model (Component~4), so unprofitable sparsity is never
+selected. Second risk: predictor mispredictions violate the accuracy floor --- mitigate with
+the Lipschitz-bounded admission test and the dense fallback.
+\end{riskbox}
+
+% ================================================================
+\begin{thebibliography}{99}
+\small
+\bibitem{hexgen} Y.~Jiang et al. \emph{HexGen: Generative Inference of Large Language Model over Heterogeneous Environment.} ICML 2024. arXiv:2311.11514.
+\bibitem{jupiter} S.~Ye et al. \emph{Jupiter: Fast and Resource-Efficient Collaborative Inference of Generative LLMs on Edge Devices.} IEEE INFOCOM 2025. arXiv:2504.08242.
+\bibitem{poster} H.~Zhou and X.~Zhang. \emph{Poster: Distributed Pipelined Collaborative Inference for LLMs on Edge Device Clusters.} ACM HotMobile 2026.
+\bibitem{foci} H.~Zhou and X.~Zhang. \emph{Fairness-Oracular MARL with Competitor-Aware Signals for Collaborative Inference.} NeurIPS 2025 Workshop (AI4NextG).
+\bibitem{dejavu} Z.~Liu et al. \emph{Deja Vu: Contextual Sparsity for Efficient LLMs at Inference Time.} ICML 2023. arXiv:2310.17157.
+\bibitem{lexico} J.~Kim, J.~Park, J.~Cho, D.~Papailiopoulos. \emph{Lexico: Extreme KV Cache Compression via Sparse Coding over Universal Dictionaries.} ICML 2025. arXiv:2412.08890.
+\bibitem{kivi} Z.~Liu et al. \emph{KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV Cache.} ICML 2024. arXiv:2402.02750.
+\bibitem{cq} T.~Zhang, J.~Yi, Z.~Xu, A.~Shrivastava. \emph{KV Cache is 1 Bit Per Channel: Efficient Large Language Model Inference with Coupled Quantization.} arXiv:2405.03917, 2024.
+\bibitem{h2o} Z.~Zhang et al. \emph{H2O: Heavy-Hitter Oracle for Efficient Generative Inference of Large Language Models.} NeurIPS 2023. arXiv:2306.14048.
+\bibitem{snapkv} Y.~Li et al. \emph{SnapKV: LLM Knows What You Are Looking For Before Generation.} arXiv:2404.14469, 2024.
+\bibitem{pyramidkv} Z.~Cai et al. \emph{PyramidKV: Dynamic KV Cache Compression based on Pyramidal Information Funneling.} arXiv:2406.02069, 2024.
+\bibitem{quest} J.~Tang et al. \emph{Quest: Query-Aware Sparsity for Efficient Long-Context LLM Inference.} ICML 2024. arXiv:2406.10774.
+\bibitem{palu} J.~Chang et al. \emph{Palu: Compressing KV-Cache with Low-Rank Projection.} ICLR 2025. arXiv:2407.21118.
+\bibitem{shadowkv} H.~Sun et al. \emph{ShadowKV: KV Cache in Shadows for High-Throughput Long-Context LLM Inference.} ICML 2025. arXiv:2410.21465.
+\bibitem{cam} Y.~Zhang et al. \emph{CaM: Cache Merging for Memory-efficient LLMs Inference.} ICML 2024, PMLR 235:58840--58850.
+\end{thebibliography}
+
+\end{document}

@@ -1,0 +1,746 @@
+\documentclass[11pt]{article}
+
+% ---------- packages ----------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage[most]{tcolorbox}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{enumitem}
+\usepackage{titlesec}
+\usepackage{parskip}
+\usepackage{listings}
+\usepackage{graphicx}
+\usepackage[colorlinks=true,linkcolor=blue!55!black,urlcolor=blue!60!black,citecolor=blue!55!black]{hyperref}
+
+% ---------- colors ----------
+\definecolor{accent}{HTML}{283593}   % indigo
+\definecolor{accent2}{HTML}{2E7D32}  % green
+\definecolor{accent3}{HTML}{B23A00}  % burnt orange
+\definecolor{warn}{HTML}{C62828}     % red
+\definecolor{codebg}{HTML}{F5F5F7}
+\definecolor{softgray}{HTML}{EEF0F5}
+
+% ---------- section styling ----------
+\titleformat{\section}{\Large\bfseries\color{accent}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{accent!85!black}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\normalsize\bfseries\color{accent!80!black}}{\thesubsubsection}{0.5em}{}
+\titlespacing*{\section}{0pt}{1.5em}{0.6em}
+
+% ---------- boxes ----------
+\newtcolorbox{primerbox}[1][]{
+  colback=accent!6, colframe=accent, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt, fonttitle=\bfseries, #1}
+\newtcolorbox{keybox}[1][]{
+  colback=green!5, colframe=accent2, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt, fonttitle=\bfseries, title={Key idea}, #1}
+\newtcolorbox{pitfall}[1][]{
+  colback=red!4, colframe=warn, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt, fonttitle=\bfseries, title={Common pitfall}, #1}
+\newtcolorbox{tipbox}[1][]{
+  colback=accent3!8, colframe=accent3, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=5pt,bottom=5pt, fonttitle=\bfseries, title={Tip}, #1}
+\newtcolorbox{goalbox}[1][]{
+  colback=softgray, colframe=accent!70!black, boxrule=0.6pt, arc=2pt,
+  left=8pt,right=8pt,top=4pt,bottom=4pt, fonttitle=\bfseries, #1}
+
+% ---------- code ----------
+\lstdefinestyle{py}{
+  language=Python,
+  basicstyle=\ttfamily\footnotesize,
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{accent}\bfseries,
+  commentstyle=\color{gray!60!black}\itshape,
+  stringstyle=\color{accent2},
+  numbers=left, numberstyle=\tiny\color{gray!70}, numbersep=7pt,
+  breaklines=true, breakatwhitespace=false, showstringspaces=false,
+  columns=fullflexible, keepspaces=true,
+  frame=leftline, framerule=2pt, rulecolor=\color{accent!60},
+  xleftmargin=13pt, framexleftmargin=13pt, aboveskip=9pt, belowskip=7pt, tabsize=4,
+}
+\lstset{style=py}
+
+\newcommand{\term}[1]{\textbf{\color{accent!85!black}#1}}
+\newcommand{\R}{\mathbb{R}}
+\newcommand{\code}[1]{\texttt{\small #1}}
+
+\begin{document}
+
+% ---------------- TITLE ----------------
+\begin{titlepage}
+\centering
+\vspace*{1.3cm}
+{\Huge\bfseries\color{accent} Evaluating Low-Rank / Tensor\\[2pt] Decomposition of the LLaMA-3.2 KV Cache\par}
+\vspace{0.5cm}
+{\Large A Beginner's Project Handout --- Single Device\par}
+\vspace{0.5cm}
+{\large Round-trip latency \;\textbullet\; end-to-end latency \;\textbullet\; memory \;\textbullet\; energy \;\textbullet\; accuracy\par}
+\vspace{1.3cm}
+\begin{tcolorbox}[colback=accent!6,colframe=accent,width=0.93\textwidth,arc=3pt]
+\centering
+\textbf{What you will be able to say at the end:} ``On LLaMA-3.2-1B/3B, on one GPU, low-rank
+(rank-$r$) decomposition of the KV cache compresses keys/values by \underline{X}\%; it costs
+\underline{Y} perplexity / \underline{Z}\% task accuracy; and after reconstruction overhead it
+is \underline{faster / slower} by \underline{W}\% per token --- here is the compression-vs-accuracy-vs-latency
+frontier, and here is which of keys, values, and layers are actually compressible.''
+\end{tcolorbox}
+\vspace{0.9cm}
+\begin{tcolorbox}[colback=softgray,colframe=accent,width=0.93\textwidth,arc=3pt]
+\centering\small
+Written against your environment: \textbf{transformers 4.57.6, torch 2.8.0}. All architecture
+numbers, API calls, and evaluation protocols are verified (sources cited). Code is runnable;
+copy it stage by stage.
+\end{tcolorbox}
+\vfill
+{\normalsize Project handout \;\textbullet\; \today\par}
+\end{titlepage}
+
+\tableofcontents
+\newpage
+
+% ================================================================
+\section*{How to use this handout}
+\addcontentsline{toc}{section}{How to use this handout}
+
+Read \textbf{Part~I} (concepts) once. Then work \textbf{Part~IV} stage by stage --- each stage
+has a goal, the code you need (Part~V), and what to expect (Part~VI). \textbf{Part~III} is your
+reference for \emph{how to measure each metric correctly}; skim it before Stage~3 and return to
+it whenever you report a number. \textbf{Part~VII} is the literature you are building on. If you
+only do one thing first, do \textbf{Stage~1} (the SVD spectrum study) --- it is cheap, needs no
+attention surgery, and tells you whether the whole premise even holds on LLaMA-3.2.
+
+% ================================================================
+\part*{Part I \;---\; Concepts you need first}
+\addcontentsline{toc}{section}{Part I --- Concepts you need first}
+
+\section{The KV cache, exactly}
+
+During generation a transformer produces one token at a time; at each step every layer must
+attend to \emph{all previous tokens}. To avoid recomputing them, each layer stores the
+\term{keys} (K) and \term{values} (V) of all past tokens --- the \term{KV cache}. It grows by
+one entry per layer per generated token, so it grows \emph{linearly with context length} and,
+at long context, becomes larger than the model weights (Table~\ref{tab:kv}).
+
+\subsection{Grouped-Query Attention (GQA): get the shape right}
+LLaMA-3.2 uses \term{Grouped-Query Attention}: there are many \emph{query} heads but only a few
+\emph{key/value} heads, which the query heads share. \textbf{The cache stores the KV heads, not
+the query heads} --- this is the \#1 thing beginners get wrong. Per layer, for K and for V:
+\[
+\text{shape} \;=\; (\text{batch},\; \underbrace{\text{num\_key\_value\_heads}}_{=\,8\text{ for both 1B and 3B}},\; \text{seq\_len},\; \text{head\_dim}).
+\]
+
+\begin{table}[h]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccc@{}}
+\toprule
+& \textbf{Llama-3.2-1B} & \textbf{Llama-3.2-3B} & (verified from config.json) \\
+\midrule
+decoder layers & 16 & 28 & \\
+hidden size & 2048 & 3072 & \\
+query heads & 32 & 24 & \\
+\textbf{KV heads (GQA)} & \textbf{8} & \textbf{8} & cache uses this \\
+head\_dim & 64 & 128 & \\
+FFN size & 8192 & 8192 & \\
+vocab & 128256 & 128256 & tied embeddings \\
+max context & 131072 & 131072 & \\
+default dtype & bfloat16 & bfloat16 & 2 bytes/element \\
+\bottomrule
+\end{tabular}
+\caption{Verified LLaMA-3.2 architecture (base and \texttt{-Instruct} are identical except the EOS token id).}
+\label{tab:arch}
+\end{table}
+
+\subsection{Per-token KV memory --- the formula you will quote constantly}
+\[
+\text{KV bytes per token} \;=\; 2 \;(\text{K and V}) \times \text{layers} \times \text{KV heads} \times \text{head\_dim} \times \text{bytes/element}.
+\]
+For bf16 (2 bytes): \textbf{1B} $= 2\times16\times8\times64\times2 = 32{,}768$ bytes $=32$~KiB/token;
+\textbf{3B} $= 2\times28\times8\times128\times2 = 114{,}688$ bytes $=112$~KiB/token.
+
+\begin{table}[h]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{@{}lccccc@{}}
+\toprule
+context (tokens) & 1K & 4K & 8K & 32K & 128K \\
+\midrule
+1B KV size (32 KiB/tok) & 32 MiB & 128 MiB & 256 MiB & 1.0 GiB & 4.0 GiB \\
+3B KV size (112 KiB/tok) & 112 MiB & 448 MiB & 896 MiB & 3.5 GiB & 14.0 GiB \\
+\midrule
+weights (bf16) & \multicolumn{2}{c}{1B $\approx$ 2.3 GiB} & \multicolumn{3}{c}{3B $\approx$ 6.0 GiB} \\
+\bottomrule
+\end{tabular}
+\caption{KV cache size vs context (batch 1). At 128K the KV cache exceeds the weights; under batched serving it dominates even sooner. \emph{This} is why the KV cache is the thing to compress.}
+\label{tab:kv}
+\end{table}
+
+\section{What ``tensor / low-rank decomposition'' means here}
+
+\subsection{Matrix low rank (start here)}
+Take one layer, one KV head. Its key cache is a matrix $K\in\R^{S\times d}$ ($S$ tokens,
+$d=$ head\_dim). A \term{rank-$r$ approximation} writes $K\approx A B^\top$ with $A\in\R^{S\times r}$,
+$B\in\R^{d\times r}$ and $r<d$. The best such approximation (in Frobenius norm) comes from the
+\term{truncated SVD}: $K=U\Sigma V^\top$, keep the top $r$ singular values.
+Storage drops from $Sd$ numbers to $r(S+d)$ --- a win when $r\ll d$. \term{Compression ratio}
+$= Sd / (r(S+d))$.
+
+\begin{keybox}
+``Low-rank'' works only if the singular values of $K$ decay fast --- i.e.\ a few directions
+carry most of the energy. \textbf{Whether that is true for LLaMA's KV is an empirical question}
+and is exactly what Stage~1 measures. Spoiler from the literature: keys tend to be low-rank,
+\emph{values much less so}~\cite{shadowkv} --- verify it yourself.
+\end{keybox}
+
+\subsection{Tensor decompositions, and three granularities}
+The full per-layer cache is a 3-D \term{tensor} (heads $\times$ tokens $\times$ head\_dim).
+\term{Tucker}, \term{CP/PARAFAC}, and \term{Tensor-Train (TT)} decompositions~\cite{kolda,tt}
+compress \emph{several axes jointly} rather than one matrix at a time; the Python library
+\code{tensorly} implements all three. You will meet three natural granularities:
+\begin{enumerate}[leftmargin=1.6em,itemsep=1pt]
+\item \term{per-(layer, head)} --- SVD of each $[S\times d]$ matrix (Stages 1--4). Finest and most interpretable; where the low-rank structure demonstrably is.
+\item \term{per-layer, heads flattened} --- SVD of one $[S\times (H\cdot d)]$ matrix per layer; captures cross-head redundancy with a single knob.
+\item \term{per-layer 3-D tensor} --- Tucker/TT of $[H\times S\times d]$ (Stage~5); compresses the head mode jointly --- the genuinely ``tensor'' contribution (cf.\ JoLT~\cite{jolt}, DecoQuant~\cite{decoquant}).
+\end{enumerate}
+\textbf{Start with granularity (1)}, then step up to (3) once it works.
+
+\begin{keybox}
+Do all of this \emph{per layer}. The layer axis is for \textbf{rank allocation, not decomposition}:
+stack per-layer results only to \emph{budget} ranks across layers (protect the least-compressible
+ones), never as a joint decomposition over the layer axis. Different layers are produced by
+different projection weights $W_K^{(\ell)}$ and share no common basis, so a cross-layer
+factorization saves nothing at attention time (which is per-layer anyway) and only confounds the
+depth-dependence you are trying to measure.
+\end{keybox}
+
+\section{The one conceptual trap: measure the right error}
+
+The obvious thing to minimize is the \term{reconstruction error} $\lVert K-\hat K\rVert_F$.
+\textbf{This is the wrong target.} The cache exists only to produce the attention output
+$o=\mathrm{softmax}\!\big(qK^\top/\sqrt d\big)\,V$; a large $\lVert K-\hat K\rVert$ in a direction
+the query never looks at is harmless, and a tiny error on a high-attention token can flip the
+output. The peer-reviewed statement of this is KDEformer~\cite{kdeformer}: prior methods
+minimized $\lVert A-\tilde A\rVert_F$ ``even though $A$ is not the ultimate output of attention
+and the output depends on $V$.''
+
+\begin{keybox}
+Report \textbf{attention-output error} and \textbf{end-task accuracy}, not just
+$\lVert K-\hat K\rVert_F$. Use reconstruction error / the singular-value spectrum as a
+\emph{diagnostic} (Stage~1), but judge quality by the output (Stages~2, 4). Recent theory ties
+the output error to the \emph{missed attention mass}~\cite{tvattn,adakv}, not to raw KV error.
+\end{keybox}
+
+\begin{pitfall}
+You may read that ``softmax \emph{amplifies} error when attention is concentrated.'' Taken
+literally that is \emph{backwards}: the softmax Jacobian $\mathrm{diag}(p)-pp^\top$ shrinks as
+attention peaks, so softmax is \emph{least} sensitive to logit noise when concentrated. The real
+reasons output error $\neq$ reconstruction error are (i) value error is weighted by attention
+probability ($o=\sum_i p_i v_i$, so $\partial o/\partial v_i = p_i$ --- error on high-attention
+tokens matters more); (ii) dropping/mis-estimating attention mass then renormalizing shifts the
+output~\cite{tvattn}; and (iii) errors compound over autoregressive steps~\cite{gear}. State it
+this way and you will be correct.
+\end{pitfall}
+
+% ================================================================
+\part*{Part II \;---\; The experiment}
+\addcontentsline{toc}{section}{Part II --- The experiment}
+
+\section{Question, scope, variables}
+
+\begin{goalbox}
+\textbf{Research question.} On a single device, how does rank-$r$ (and later Tucker/TT)
+decomposition of the LLaMA-3.2 KV cache trade \emph{compression} against \emph{accuracy} and
+\emph{latency/memory/energy} --- and \emph{which} parts of the cache (keys vs values, shallow vs
+deep layers) are actually compressible?
+\end{goalbox}
+
+\begin{itemize}[leftmargin=1.4em,itemsep=1pt]
+\item \term{Model:} start with \textbf{Llama-3.2-1B} (16 layers --- fast to iterate, fits any
+modern GPU), then repeat on \textbf{Llama-3.2-3B} (28 layers --- matches the FSU
+poster~\cite{poster}). Use the \code{-Instruct} variants for task accuracy.
+\item \term{Baseline:} the unmodified model with a full bf16 KV cache.
+\item \term{Method under test:} truncated-SVD rank-$r$ reconstruction of K and V, per (layer, head);
+sweep $r$. Extension: Tucker/TT over the (head $\times$ token $\times$ feature) tensor.
+\item \term{Independent variables:} rank $r$ (hence compression ratio); context length;
+keys-only vs values-only vs both; per-layer rank.
+\item \term{The three sub-questions:} \textbf{Q1} does the low-rank premise hold (Stage~1)?
+\textbf{Q2} what does it cost accuracy (Stages~2, 4)? \textbf{Q3} is it actually faster/smaller
+after overhead (Stage~3)?
+\end{itemize}
+
+\begin{tipbox}
+Two experiments answer two different questions and must not be conflated. \textbf{Accuracy}
+experiments \emph{reconstruct} $\hat K,\hat V$ (dense) and run normal attention --- this measures
+quality but saves no memory and \emph{adds} SVD time. \textbf{Memory/latency} experiments must
+\emph{store the factors} $A,B$ (memory saved) and reconstruct on the fly (compute added), or
+compute attention directly from factors (the research frontier). Keep the two separate; \S\ref{sec:expect}
+explains why the naive version can be \emph{slower}.
+\end{tipbox}
+
+% ================================================================
+\part*{Part III \;---\; Metrics and how to measure them correctly}
+\addcontentsline{toc}{section}{Part III --- Metrics and how to measure them}
+
+\section{Definitions and measurement recipes}
+
+\begin{table}[h]
+\centering\small
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{3.1cm}p{5.4cm}p{5.0cm}@{}}
+\toprule
+\textbf{Metric} & \textbf{Definition} & \textbf{Tool / pitfall} \\
+\midrule
+TTFT (time-to-first-token) & latency of the prefill pass (prompt $\to$ first token) & generate 1 token; \code{cuda.synchronize} \\
+TPOT / per-step (``round time'') & steady-state cost of one decode step $=(\text{E2E}-\text{TTFT})/(N{-}1)$ & CUDA events; report median \& P95 \\
+End-to-end latency & full generation time for $N$ tokens & warmup first; fix seed \\
+Throughput & tokens / second & $=N/\text{E2E}$ \\
+Peak memory & max GPU bytes during run & \code{max\_memory\_allocated}; reset first \\
+KV bytes & cache size & analytic formula \emph{and} measured delta \\
+Energy / power & Joules or Watts per token & NVML counter (desktop); \code{tegrastats} (Jetson) \\
+Compression ratio & dense bytes / compressed bytes & state keys-only vs both \\
+Reconstruction err.\ (diagnostic) & $\lVert K-\hat K\rVert_F/\lVert K\rVert_F$ & \emph{diagnostic only} \\
+\textbf{Attention-output err.} & $\lVert o-\hat o\rVert$, or KL of next-token dist. & the error that matters \\
+Perplexity & $\exp(\text{mean NLL})$ on WikiText-2 & strided window~\cite{hfppl} \\
+Task accuracy & LongBench / RULER / GSM8K & GSM8K guards reasoning \\
+\bottomrule
+\end{tabular}
+\caption{The metric kit. Report accuracy vs compression as a Pareto curve, with latency/memory/energy alongside.}
+\end{table}
+
+\begin{pitfall}
+\textbf{CUDA is asynchronous.} A bare \code{time.perf\_counter()} around \code{model(...)} times
+only the \emph{kernel launch}, not the work --- you will report numbers that are wildly too
+small. Always \code{torch.cuda.synchronize()} around wall-clock timing, or use
+\code{torch.cuda.Event} (below). Also: do \textbf{warmup} iterations (first calls pay
+CUDA-context / cuBLAS / autotune costs), and report \textbf{median and P95}, not mean --- decode
+latency is right-skewed.
+\end{pitfall}
+
+The measurement helpers (use these everywhere):
+
+\begin{lstlisting}
+import torch, numpy as np, time
+
+def time_ms(fn, warmup=10, iters=50):
+    """Median/P95 latency of fn() in milliseconds, done correctly."""
+    for _ in range(warmup):
+        fn()
+    torch.cuda.synchronize()
+    ts = []
+    for _ in range(iters):
+        s = torch.cuda.Event(enable_timing=True); e = torch.cuda.Event(enable_timing=True)
+        s.record(); fn(); e.record()
+        torch.cuda.synchronize()          # REQUIRED before reading elapsed_time
+        ts.append(s.elapsed_time(e))
+    t = np.array(ts)
+    return {"median": float(np.median(t)), "p95": float(np.percentile(t, 95))}
+
+def kv_bytes_measured(model, inputs):
+    """Isolate the KV-cache cost of prefill from weights."""
+    torch.cuda.synchronize(); torch.cuda.empty_cache()
+    torch.cuda.reset_peak_memory_stats()
+    base = torch.cuda.memory_allocated()
+    with torch.no_grad():
+        model(**inputs, use_cache=True)
+    torch.cuda.synchronize()
+    return torch.cuda.memory_allocated() - base   # includes prefill activations; cross-check w/ formula
+
+def gpu_energy_joules(fn):
+    """Desktop NVIDIA energy via the NVML counter (Volta+). pip install nvidia-ml-py"""
+    import pynvml
+    pynvml.nvmlInit(); h = pynvml.nvmlDeviceGetHandleByIndex(0)
+    mj0 = pynvml.nvmlDeviceGetTotalEnergyConsumption(h)  # millijoules
+    fn(); torch.cuda.synchronize()
+    return (pynvml.nvmlDeviceGetTotalEnergyConsumption(h) - mj0) / 1000.0
+\end{lstlisting}
+
+\begin{tipbox}
+On a \textbf{Jetson Orin}, energy comes from real on-board sensors: \code{sudo tegrastats --interval 100}
+(watch the \code{VDD\_CPU\_GPU\_CV} rail, in mW), or \code{pip install jetson-stats} then read
+\code{jtop().power['tot']}. On a desktop GPU use the NVML counter above (more reliable than
+\code{nvidia-smi --query-gpu=power.draw} for short kernels).
+\end{tipbox}
+
+% ================================================================
+\part*{Part IV \;---\; The staged plan}
+\addcontentsline{toc}{section}{Part IV --- The staged plan}
+
+\section{Milestones (do them in order)}
+
+\subsection*{Stage 0 --- Setup \& baseline}
+\begin{goalbox}
+\textbf{Goal:} run the unmodified model and record every baseline metric. \textbf{Produce:} a
+table of TTFT, TPOT, E2E, throughput, peak memory, measured KV bytes (vs the analytic formula),
+energy/token, and baseline WikiText-2 perplexity, for 1B at a few context lengths.
+\end{goalbox}
+
+\subsection*{Stage 1 --- Does the low-rank premise hold? (the cheap, essential first result)}
+\begin{goalbox}
+\textbf{Goal:} extract K, V per layer from one prefill pass and plot the \emph{singular-value
+spectrum} and \emph{energy-retained-vs-rank}. No attention surgery needed. \textbf{Produce:}
+(i) spectrum curves per layer; (ii) energy-vs-rank for \emph{keys vs values}; (iii)
+energy-vs-rank by \emph{layer depth}. \textbf{Expected (from literature, but verify):} keys much
+more compressible than values~\cite{shadowkv}; depth- and RoPE-dependence are \emph{open and
+contested}~\cite{shadowkv,lorc} --- a real chance to contribute a clean measurement.
+\end{goalbox}
+
+\subsection*{Stage 2 --- Accuracy impact (offline, no attention surgery)}
+\begin{goalbox}
+\textbf{Goal:} prefill the same prompt with a full cache and with a rank-$r$ cache; compare the
+next-token distributions (KL divergence and top-1 agreement) as a function of $r$.
+\textbf{Produce:} a KL-vs-$r$ curve; the smallest $r$ preserving the argmax token.
+\end{goalbox}
+
+\subsection*{Stage 3 --- Online integration \& real cost}
+\begin{goalbox}
+\textbf{Goal:} generate with a \code{LowRankCache} and measure TPOT, E2E, throughput, peak
+memory, energy. \textbf{Produce:} the honest latency/memory numbers --- \emph{including} whether
+naive reconstruction makes decoding \emph{slower} (\S\ref{sec:expect}).
+\end{goalbox}
+
+\subsection*{Stage 4 --- Sweep \& frontier}
+\begin{goalbox}
+\textbf{Goal:} sweep $r$ and context length; add a downstream task (GSM8K for reasoning,
+LongBench/RULER for long context). \textbf{Produce:} the compression-vs-accuracy-vs-latency
+Pareto frontier; separate keys-only, values-only, both.
+\end{goalbox}
+
+\subsection*{Stage 5 --- Baselines \& tensor extension}
+\begin{goalbox}
+\textbf{Goal:} compare against KIVI 2-bit quantization~\cite{kivi} and the full cache; then try
+Tucker/TT (\code{tensorly}) over the per-layer head$\times$token$\times$feature tensor (granularity~3).
+\textbf{Produce:} your method placed on the same axes as an established baseline; a first
+``genuinely tensor'' result.
+\end{goalbox}
+
+% ================================================================
+\part*{Part V \;---\; Implementation}
+\addcontentsline{toc}{section}{Part V --- Implementation}
+
+\section{Environment}
+\begin{lstlisting}[language=bash, keywordstyle=\color{accent}\bfseries]
+# Python 3.10+, an NVIDIA GPU. Your versions: transformers 4.57.6, torch 2.8.0
+pip install "transformers==4.57.6" torch --upgrade
+pip install datasets matplotlib numpy nvidia-ml-py tensorly
+# gated model: request access on huggingface.co/meta-llama, then `huggingface-cli login`
+# (or use an ungated mirror such as unsloth/Llama-3.2-1B)
+\end{lstlisting}
+
+\begin{pitfall}
+The KV-cache internal layout is \textbf{version-dependent}. On your 4.57.x, read a layer with the
+portable \code{cache[i]} (returns a \code{(K,V)} tuple) and \code{len(cache)} for the layer count;
+write in place with \code{cache.layers[i].keys}. Older ($\le$4.53) code used
+\code{cache.key\_cache[i]}; the v5 line removes \code{to/from\_legacy\_cache}. Stick to
+\code{cache[i]} / \code{len(cache)} in teaching code.
+\end{pitfall}
+
+\section{Load the model}
+\begin{lstlisting}
+import torch
+from transformers import AutoTokenizer, AutoModelForCausalLM
+NAME = "meta-llama/Llama-3.2-1B-Instruct"     # or unsloth/Llama-3.2-1B-Instruct
+tok = AutoTokenizer.from_pretrained(NAME)
+model = AutoModelForCausalLM.from_pretrained(NAME, dtype=torch.bfloat16, device_map="cuda").eval()
+inputs = tok("Explain why the sky is blue.", return_tensors="pt").to(model.device)
+\end{lstlisting}
+
+\section{Stage 1 --- extract K/V and plot the spectrum}
+\begin{lstlisting}
+import matplotlib.pyplot as plt
+
+with torch.no_grad():
+    out = model(**inputs, use_cache=True)      # one prefill pass
+cache = out.past_key_values                     # a DynamicCache
+
+def energy_vs_rank(mat):                         # mat: [S, d]
+    s = torch.linalg.svdvals(mat.float())        # singular values, descending
+    cum = torch.cumsum(s**2, 0) / (s**2).sum()   # fraction of energy kept by top-k
+    return cum                                   # cum[r-1] = energy kept at rank r
+
+for i in [0, len(cache)//2, len(cache)-1]:       # shallow / middle / deep layer
+    K, V = cache[i]                              # each [B, num_kv_heads, S, head_dim]
+    Kmat = K[0, 0]                               # layer i, head 0 -> [S, head_dim]
+    Vmat = V[0, 0]
+    plt.plot(energy_vs_rank(Kmat).cpu(), label=f"layer {i} K")
+    plt.plot(energy_vs_rank(Vmat).cpu(), '--', label=f"layer {i} V")
+plt.axhline(0.95, color="gray", ls=":"); plt.xlabel("rank r"); plt.ylabel("energy retained")
+plt.legend(); plt.title("Low-rank structure of LLaMA-3.2 KV (keys solid, values dashed)")
+plt.savefig("stage1_spectrum.png", dpi=150)
+\end{lstlisting}
+\emph{Note (RoPE):} the cache stores keys \emph{after} rotary position embedding. So you are
+measuring \emph{post-RoPE} low-rankness; the literature disagrees on whether RoPE raises or lowers
+key rank~\cite{shadowkv}, so state which you measured. Pre-RoPE analysis is a worthwhile extension.
+
+\section{Stages 2--3 --- a low-rank cache}
+The clean, correct pattern: subclass \code{DynamicCache}, and \emph{after the prefill step}
+replace the stored keys/values with their rank-$r$ reconstruction; decode tokens append exactly
+(a small exact ``tail'').
+
+\begin{lstlisting}
+from transformers import DynamicCache
+
+def low_rank_reconstruct(x, r):
+    """x: [B, H, S, D] -> rank-r reconstruction of each [S, D] slice (dense, same shape)."""
+    B, H, S, D = x.shape
+    r = min(r, S, D)
+    U, s, Vh = torch.linalg.svd(x.float().reshape(B * H, S, D), full_matrices=False)
+    xhat = (U[..., :r] * s[..., :r].unsqueeze(-2)) @ Vh[..., :r, :]
+    return xhat.reshape(B, H, S, D).to(x.dtype)
+
+class LowRankCache(DynamicCache):
+    def __init__(self, rank=32, compress_keys=True, compress_values=True, **kw):
+        super().__init__(**kw)
+        self.rank = rank; self.ck = compress_keys; self.cv = compress_values
+        self._done = set()
+    def update(self, key_states, value_states, layer_idx, cache_kwargs=None):
+        keys, values = super().update(key_states, value_states, layer_idx, cache_kwargs)
+        if layer_idx not in self._done and keys.shape[-2] > 1:   # once, right after prefill
+            if self.ck: keys   = low_rank_reconstruct(keys,   self.rank)
+            if self.cv: values = low_rank_reconstruct(values, self.rank)
+            self.layers[layer_idx].keys   = keys                 # write back (4.54+)
+            self.layers[layer_idx].values = values
+            self._done.add(layer_idx)
+        return keys, values
+
+# Stage 2: accuracy of the FIRST generated token, full vs rank-r
+def next_logits(cache_ctor):
+    c = cache_ctor()
+    with torch.no_grad():
+        o = model(**inputs, past_key_values=c, use_cache=True)
+    return o.logits[0, -1].float()
+
+full = next_logits(lambda: DynamicCache(config=model.config))
+for r in [4, 8, 16, 32, 64]:
+    lr = next_logits(lambda: LowRankCache(rank=r, config=model.config))
+    kl = torch.nn.functional.kl_div(lr.log_softmax(-1), full.softmax(-1), reduction="sum")
+    agree = (full.argmax() == lr.argmax()).item()
+    print(f"r={r:3d}  KL={kl:.4f}  top1_agree={agree}")
+
+# Stage 3: real generation cost with the compressed cache
+def gen(cache_ctor, n=64):
+    return model.generate(**inputs, do_sample=False, max_new_tokens=n,
+                          past_key_values=cache_ctor())
+print("dense  ", time_ms(lambda: gen(lambda: DynamicCache(config=model.config))))
+print("rank-16", time_ms(lambda: gen(lambda: LowRankCache(rank=16, config=model.config))))
+\end{lstlisting}
+
+\begin{tipbox}
+\textbf{Memory vs latency, made explicit.} \code{LowRankCache} above reconstructs \emph{dense}
+tensors, so it measures \emph{accuracy} and the \emph{reconstruction time} but saves no memory. To
+actually save memory, store the factors $A,B$ (and $C,D$ for V) instead of $\hat K$, and
+reconstruct inside \code{update()} on read --- memory drops to $r(S+d)$ per head, at the cost of a
+reconstruction each step. To save memory \emph{and} avoid reconstruction, compute attention
+directly from the factors ($qK^\top\!\approx (qB)A^\top$) --- that is the research frontier
+(compressed-domain attention), out of scope here but the natural next step.
+\end{tipbox}
+
+\section{Perplexity (baseline quality, Stage 0)}
+The canonical strided-window protocol~\cite{hfppl}:
+\begin{lstlisting}
+from datasets import load_dataset
+def perplexity(model, tok, max_length=4096, stride=1024, device="cuda"):
+    data = load_dataset("wikitext", "wikitext-2-raw-v1", split="test")
+    enc = tok("\n\n".join(data["text"]), return_tensors="pt")
+    seq_len = enc.input_ids.size(1); nlls = []; prev = 0
+    for begin in range(0, seq_len, stride):
+        end = min(begin + max_length, seq_len)
+        trg = end - prev
+        ids = enc.input_ids[:, begin:end].to(device)
+        tgt = ids.clone(); tgt[:, :-trg] = -100          # only last `trg` tokens count
+        with torch.no_grad():
+            nlls.append(model(ids, labels=tgt).loss)
+        prev = end
+        if end == seq_len: break
+    return torch.exp(torch.stack(nlls).mean()).item()
+\end{lstlisting}
+This scores the \emph{baseline} model (teacher-forced, no growing cache). Measuring compression's
+effect on perplexity requires streaming autoregressive scoring with the compressed cache --- a
+worthwhile Stage~4+ extension; for a first pass, judge compression by Stage~2 KL and Stage~4 task
+accuracy.
+
+\section{Stage 5 --- per-layer Tucker (granularity 3, the tensor step-up)}
+Once the matrix case works, compress the per-layer 3-D tensor $[H\times S\times d]$ with Tucker,
+which shares a subspace \emph{across the 8 heads} --- a gain a per-head SVD cannot capture. Use
+\code{tensorly} (\code{pip install tensorly}), and keep it \emph{per layer} (never stack the layer
+axis --- see Part~I).
+
+\begin{lstlisting}
+import tensorly as tl
+from tensorly.decomposition import tucker
+tl.set_backend("pytorch")
+
+K, V = cache[layer_idx]                 # K: [B, H, S, D]
+Kten = K[0].float()                     # [H, S, D] = heads x tokens x head_dim
+
+r_h, r_s, r_d = 8, 128, 16              # per-mode ranks (<= H, S, D); r_h < 8 shares across heads
+core, factors = tucker(Kten, rank=[r_h, r_s, r_d])
+Khat = tl.tucker_to_tensor((core, factors))          # reconstruction, shape [H, S, D]
+rel_err = (Khat - Kten).norm() / Kten.norm()
+
+dense      = Kten.numel()
+compressed = core.numel() + sum(f.numel() for f in factors)
+print(f"Tucker rel_err={rel_err:.4f}  compression={dense / compressed:.2f}x")
+\end{lstlisting}
+Compare this compression-vs-error point against granularity~(1) (per-head SVD) at \emph{matched}
+memory: if Tucker wins, the cross-head sharing is real structure worth exploiting.
+(\code{tensor\_train} gives the TT variant; reconstruct with \code{tl.tt\_to\_tensor}.)
+
+% ================================================================
+\part*{Part VI \;---\; Interpreting your results}
+\addcontentsline{toc}{section}{Part VI --- Interpreting your results}
+
+\section{What to expect (and the honest lessons)}
+\label{sec:expect}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=2pt]
+\item \term{Keys compress, values resist.} Expect key spectra to decay fast and value spectra to
+be flatter; ShadowKV reports values are \emph{not} low-rank~\cite{shadowkv}, which is why it keeps
+low-rank keys but offloads values. If you see this, it is a real, reportable finding --- and it
+argues for compressing keys and values \emph{differently}.
+\item \term{Depth and RoPE are open questions.} The literature disagrees on whether early or deep
+layers are more compressible, and on whether RoPE raises or lowers key
+rank~\cite{shadowkv,lorc}. Your clean single-model measurement is a genuine contribution --- just
+state your setup (which model, context length, pre- vs post-RoPE).
+\item \term{Naive low-rank can be \emph{slower}.} This is the most important lesson. If you store
+factors and reconstruct dense $\hat K$ every step, you pay an SVD/matmul per step; on a small head
+dim ($d=64$/$128$) the dense attention was already cheap, so reconstruction overhead can exceed
+the savings, and TPOT \emph{goes up}. This is not a failure of your experiment --- it is precisely
+why the field moves to (a) storing factors for \emph{memory} while accepting some latency, (b)
+computing attention \emph{in the compressed domain} (no reconstruction), or (c) query-aware sparse
+retrieval. Documenting the crossover ($r$, context length) at which low-rank helps or hurts is a
+publishable result on its own.
+\item \term{Reconstruction error underestimates task damage.} A rank that looks fine on
+$\lVert K-\hat K\rVert$ and even on perplexity can still hurt GSM8K, because chained reasoning
+compounds per-step error~\cite{gear}. Always keep a reasoning task in the loop.
+\end{enumerate}
+
+\begin{keybox}
+These ``negative'' findings are the bridge to the research program: the memory-wall poster's
+pipeline~\cite{poster} plus \emph{compressed-domain attention} (compute from factors, never
+reconstruct) is exactly the fix for lesson~3. Your single-device evaluation is the evidence base
+that motivates it.
+\end{keybox}
+
+% ================================================================
+\part*{Part VII \;---\; Related work}
+\addcontentsline{toc}{section}{Part VII --- Related work}
+
+\section{The landscape (grouped, with code where public)}
+
+\textbf{KV quantization:} KIVI~\cite{kivi} (2-bit; keys per-channel, values per-token;
+\href{https://github.com/jy-yuan/KIVI}{code}); GEAR~\cite{gear} (quant + low-rank error + sparse
+outliers; \href{https://github.com/opengear-project/GEAR}{code}); DecoQuant~\cite{decoquant}
+(tensor-decomposition-assisted low-bit KV; \href{https://github.com/lpyhdzx/DecoQuant_code}{code}).
+\\[2pt]
+\textbf{Token eviction / attention sparsity:} H2O~\cite{h2o} (heavy hitters); SnapKV~\cite{snapkv};
+Quest~\cite{quest} (query-aware page selection); RocketKV~\cite{rocketkv} (two-stage
+eviction + sparse attention).
+\\[2pt]
+\textbf{Low-rank / tensor KV (closest to this project):} Palu~\cite{palu} (low-rank projection of
+KV; \href{https://github.com/shadowpa0327/Palu}{code}); ShadowKV~\cite{shadowkv} (low-rank keys on
+GPU, values offloaded; \href{https://github.com/ByteDance-Seed/ShadowKV}{code}); Eigen
+Attention~\cite{eigenattn}; MLA / DeepSeek-V2~\cite{mla} (trained-in low-rank latent KV);
+JoLT~\cite{jolt} (partial Tucker of the KV tensor + JL residual --- the explicit tensor version;
+recent preprint).
+\\[2pt]
+\textbf{Attention-output-error theory (why not $\lVert K-\hat K\rVert$):} KDEformer~\cite{kdeformer};
+Ada-KV~\cite{adakv} (error bounded by evicted attention mass); the total-variation / missed-mass
+identity~\cite{tvattn} (recent preprint).
+\\[2pt]
+\textbf{Tensor foundations:} Robust PCA (low-rank + sparse)~\cite{rpca}; CP/Tucker~\cite{kolda};
+Tensor-Train~\cite{tt}; low-rank + sparse weights (LoSparse)~\cite{losparse}; low-rank attention
+(Linformer)~\cite{linformer}.
+\\[2pt]
+\textbf{Systems \& the base pipeline:} FlashAttention~\cite{flashattention} (the online-softmax
+primitive); vLLM / PagedAttention~\cite{pagedattention} (the standard KV memory manager you are
+implicitly compared against); the FSU pipelined-inference poster~\cite{poster}, HexGen~\cite{hexgen},
+Jupiter~\cite{jupiter}.
+\\[2pt]
+\textbf{Evaluation:} WikiText-2~\cite{wikitext}; C4~\cite{c4}; LongBench~\cite{longbench};
+RULER~\cite{ruler}; GSM8K~\cite{gsm8k}; the HF perplexity protocol~\cite{hfppl}.
+
+\begin{tipbox}
+Recent (2025--2026) preprints marked as such (JoLT, the TV/missed-mass identity) are verified to
+exist on arXiv but are not yet peer-reviewed --- read the PDF before leaning on their exact
+numbers. Everything else here is published.
+\end{tipbox}
+
+% ================================================================
+\part*{Part VIII \;---\; Deliverables \& checklist}
+\addcontentsline{toc}{section}{Part VIII --- Deliverables \& checklist}
+
+\section{What to produce}
+\begin{itemize}[leftmargin=1.5em,itemsep=1pt]
+\item \textbf{Plots:} (1) singular-value / energy-vs-rank spectra, keys vs values, by layer;
+(2) KL-divergence vs rank; (3) compression-vs-accuracy Pareto (per keys/values/both);
+(4) TPOT and peak-memory vs rank and context length; (5) energy/token vs rank.
+\item \textbf{Tables:} baseline metrics; the crossover $r$ where low-rank helps/hurts latency;
+your method vs KIVI 2-bit vs full cache.
+\item \textbf{One figure that tells the story:} accuracy retained (y) vs compression ratio (x),
+with a second panel of latency vs compression --- this is the paper's money plot.
+\end{itemize}
+
+\section{Reproducibility checklist}
+\begin{itemize}[leftmargin=1.5em,itemsep=0pt]
+\item[$\square$] Fixed seeds; greedy decoding for all accuracy comparisons.
+\item[$\square$] \code{cuda.synchronize} / CUDA events around every timing; warmup done.
+\item[$\square$] Median and P95 reported over $\ge$50 iters.
+\item[$\square$] KV bytes reported both analytically and measured.
+\item[$\square$] Same tokenizer and context length across compared runs (perplexity is tokenizer-dependent).
+\item[$\square$] Pre- vs post-RoPE stated for any spectrum plot.
+\item[$\square$] A reasoning task (GSM8K) included, not only perplexity.
+\item[$\square$] transformers / torch versions recorded in the writeup.
+\end{itemize}
+
+% ================================================================
+\begin{thebibliography}{99}
+\small
+% base system
+\bibitem{poster} H.~Zhou, X.~Zhang. \emph{Poster: Distributed Pipelined Collaborative Inference for LLMs on Edge Device Clusters.} ACM HotMobile 2026.
+\bibitem{hexgen} Y.~Jiang et al. \emph{HexGen: Generative Inference of LLM over Heterogeneous Environment.} ICML 2024. arXiv:2311.11514.
+\bibitem{jupiter} S.~Ye et al. \emph{Jupiter: Fast and Resource-Efficient Collaborative Inference of Generative LLMs on Edge Devices.} INFOCOM 2025. arXiv:2504.08242.
+% KV quantization
+\bibitem{kivi} Z.~Liu et al. \emph{KIVI: A Tuning-Free Asymmetric 2bit Quantization for KV Cache.} ICML 2024. arXiv:2402.02750.
+\bibitem{gear} H.~Kang, Q.~Zhang, G.~Jeong, T.~Krishna, T.~Zhao. \emph{GEAR: An Efficient Error Reduction Framework for KV Cache Compression.} PMLR v262, 2024. arXiv:2403.05527.
+\bibitem{decoquant} P.~Liu et al. \emph{Unlocking Data-free Low-bit Quantization with Matrix Decomposition for KV Cache Compression (DecoQuant).} ACL 2024. arXiv:2405.12591.
+% eviction / sparsity
+\bibitem{h2o} Z.~Zhang et al. \emph{H2O: Heavy-Hitter Oracle for Efficient Generative Inference of LLMs.} NeurIPS 2023. arXiv:2306.14048.
+\bibitem{snapkv} Y.~Li et al. \emph{SnapKV: LLM Knows What You Are Looking For Before Generation.} arXiv:2404.14469, 2024.
+\bibitem{quest} J.~Tang et al. \emph{Quest: Query-Aware Sparsity for Efficient Long-Context LLM Inference.} ICML 2024. arXiv:2406.10774.
+\bibitem{rocketkv} P.~Behnam et al. \emph{RocketKV: Accelerating Long-Context LLM Inference via Two-Stage KV Cache Compression.} ICML 2025. arXiv:2502.14051.
+% low-rank / tensor KV
+\bibitem{palu} J.~Chang et al. \emph{Palu: Compressing KV-Cache with Low-Rank Projection.} ICLR 2025. arXiv:2407.21118.
+\bibitem{shadowkv} H.~Sun et al. \emph{ShadowKV: KV Cache in Shadows for High-Throughput Long-Context LLM Inference.} ICML 2025. arXiv:2410.21465.
+\bibitem{eigenattn} U.~Saxena et al. \emph{Eigen Attention: Attention in Low-Rank Space for KV Cache Compression.} EMNLP 2024 Findings. arXiv:2408.05646.
+\bibitem{mla} DeepSeek-AI. \emph{DeepSeek-V2} (Multi-head Latent Attention: trained-in low-rank KV). arXiv:2405.04434, 2024.
+\bibitem{jolt} \emph{A JoLT for the KV Cache: Near-Lossless KV Cache Compression via Joint Tucker and JL-Residual Allocation.} arXiv:2607.12550, 2026 (preprint).
+% attention-output error theory
+\bibitem{kdeformer} A.~Zandieh, I.~Han, M.~Daliri, A.~Karbasi. \emph{KDEformer: Accelerating Transformers via Kernel Density Estimation.} ICML 2023. arXiv:2302.02451.
+\bibitem{adakv} Y.~Feng et al. \emph{Ada-KV: Optimizing KV Cache Eviction by Adaptive Budget Allocation.} arXiv:2407.11550, 2024.
+\bibitem{tvattn} A.~Tzachristas et al. \emph{A Mathematical Theory of Top-k Sparse Attention via Total Variation Distance.} arXiv:2512.07647, 2025 (preprint).
+% tensor foundations
+\bibitem{rpca} E.~J.~Cand\`es, X.~Li, Y.~Ma, J.~Wright. \emph{Robust Principal Component Analysis?} J.~ACM 58(3):11, 2011.
+\bibitem{kolda} T.~G.~Kolda, B.~W.~Bader. \emph{Tensor Decompositions and Applications.} SIAM Review 51(3):455--500, 2009.
+\bibitem{tt} I.~V.~Oseledets. \emph{Tensor-Train Decomposition.} SIAM J.~Sci.~Comput. 33(5):2295--2317, 2011.
+\bibitem{losparse} Y.~Li et al. \emph{LoSparse: Structured Compression of LLMs based on Low-Rank and Sparse Approximation.} ICML 2023. arXiv:2306.11222.
+\bibitem{linformer} S.~Wang et al. \emph{Linformer: Self-Attention with Linear Complexity.} arXiv:2006.04768, 2020.
+\bibitem{lorc} R.~Zhang et al. \emph{LoRC: Low-Rank Compression for LLMs KV Cache with a Progressive Compression Strategy.} arXiv:2410.03111, 2024.
+% systems
+\bibitem{flashattention} T.~Dao, D.~Y.~Fu, S.~Ermon, A.~Rudra, C.~R\'e. \emph{FlashAttention: Fast and Memory-Efficient Exact Attention with IO-Awareness.} NeurIPS 2022. arXiv:2205.14135.
+\bibitem{pagedattention} W.~Kwon et al. \emph{Efficient Memory Management for LLM Serving with PagedAttention (vLLM).} SOSP 2023. arXiv:2309.06180.
+% evaluation
+\bibitem{wikitext} S.~Merity et al. \emph{Pointer Sentinel Mixture Models} (WikiText). arXiv:1609.07843, 2016.
+\bibitem{c4} C.~Raffel et al. \emph{Exploring the Limits of Transfer Learning with a Unified Text-to-Text Transformer} (C4). arXiv:1910.10683, 2019.
+\bibitem{longbench} Y.~Bai et al. \emph{LongBench: A Bilingual, Multitask Benchmark for Long Context Understanding.} ACL 2024. arXiv:2308.14508.
+\bibitem{ruler} C.-P.~Hsieh et al. \emph{RULER: What's the Real Context Size of Your Long-Context Language Models?} COLM 2024. arXiv:2404.06654.
+\bibitem{gsm8k} K.~Cobbe et al. \emph{Training Verifiers to Solve Math Word Problems (GSM8K).} arXiv:2110.14168, 2021.
+\bibitem{hfppl} Hugging Face. \emph{Perplexity of fixed-length models.} \url{https://huggingface.co/docs/transformers/en/perplexity}.
+\end{thebibliography}
+
+\end{document}
