@@ -1,3 +1,13 @@
+# ---- Python / environment ----
+.venv/
+__pycache__/
+*.pyc
+
+# ---- run logs & large regenerable artifacts ----
+logs/
+*.err
+*.pt
+
 # ---- LaTeX build artifacts ----
 *.aux
 *.log

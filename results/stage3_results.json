@@ -1,0 +1,174 @@
+{
+  "512": {
+    "validation": {
+      "naive_vs_factored_r32": 5,
+      "fullrank_vs_dense": 32
+    },
+    "dense": {
+      "ttft_ms": {
+        "median": 28.85752010345459,
+        "p95": 29.06865587234497
+      },
+      "e2e_ms": {
+        "median": 1367.2454223632812,
+        "p95": 1796.2573852539062
+      },
+      "tpot_ms": 21.244252416822647,
+      "throughput_tok_s": 46.809445439119564,
+      "peak_mem_bytes": 2601972736,
+      "cache_bytes_prefill": 16777216,
+      "dense_cache_bytes_analytic": 16777216,
+      "energy_J_per_tok": 1.98911328125
+    },
+    "naive-r16": {
+      "ttft_ms": {
+        "median": 591.8769226074219,
+        "p95": 906.7595977783201
+      },
+      "e2e_ms": {
+        "median": 2117.182861328125,
+        "p95": 2471.572021484375
+      },
+      "tpot_ms": 24.211205376519096,
+      "throughput_tok_s": 30.22884851800298,
+      "peak_mem_bytes": 2601972736,
+      "cache_bytes_prefill": 16777216,
+      "dense_cache_bytes_analytic": 16777216,
+      "energy_J_per_tok": 3.46330078125
+    },
+    "factored-r16": {
+      "ttft_ms": {
+        "median": 627.0984191894531,
+        "p95": 714.4229431152343
+      },
+      "e2e_ms": {
+        "median": 2183.388427734375,
+        "p95": 2767.45068359375
+      },
+      "tpot_ms": 24.703016008649552,
+      "throughput_tok_s": 29.312237431985725,
+      "peak_mem_bytes": 2590962688,
+      "cache_bytes_prefill": 4718592,
+      "dense_cache_bytes_analytic": 16777216,
+      "energy_J_per_tok": 3.56480078125
+    },
+    "naive-r32": {
+      "ttft_ms": {
+        "median": 617.9493408203125,
+        "p95": 752.4247009277343
+      },
+      "e2e_ms": {
+        "median": 2082.4003295898438,
+        "p95": 2471.7761840820312
+      },
+      "tpot_ms": 23.24525378999256,
+      "throughput_tok_s": 30.7337638640336,
+      "peak_mem_bytes": 2601972736,
+      "cache_bytes_prefill": 16777216,
+      "dense_cache_bytes_analytic": 16777216,
+      "energy_J_per_tok": 3.42988671875
+    },
+    "factored-r32": {
+      "ttft_ms": {
+        "median": 607.1932373046875,
+        "p95": 979.2000640869138
+      },
+      "e2e_ms": {
+        "median": 2428.336669921875,
+        "p95": 3362.001953125
+      },
+      "tpot_ms": 28.90703861297123,
+      "throughput_tok_s": 26.355488838398596,
+      "peak_mem_bytes": 2595681280,
+      "cache_bytes_prefill": 9437184,
+      "dense_cache_bytes_analytic": 16777216,
+      "energy_J_per_tok": 3.6886171875
+    }
+  },
+  "4096": {
+    "validation": {
+      "naive_vs_factored_r32": 32,
+      "fullrank_vs_dense": 29
+    },
+    "dense": {
+      "ttft_ms": {
+        "median": 527.5148315429688,
+        "p95": 528.7947052001953
+      },
+      "e2e_ms": {
+        "median": 1852.7578125,
+        "p95": 2355.6859741210938
+      },
+      "tpot_ms": 21.03560287233383,
+      "throughput_tok_s": 34.543100867372544,
+      "peak_mem_bytes": 7733945344,
+      "cache_bytes_prefill": 134217728,
+      "dense_cache_bytes_analytic": 134217728,
+      "energy_J_per_tok": 6.338984375
+    },
+    "naive-r16": {
+      "ttft_ms": {
+        "median": 1004.9574584960938,
+        "p95": 1190.976806640625
+      },
+      "e2e_ms": {
+        "median": 2314.0892333984375,
+        "p95": 3382.4202880859375
+      },
+      "tpot_ms": 20.779869442894345,
+      "throughput_tok_s": 27.656669015313007,
+      "peak_mem_bytes": 7733945344,
+      "cache_bytes_prefill": 134217728,
+      "dense_cache_bytes_analytic": 134217728,
+      "energy_J_per_tok": 6.699984375
+    },
+    "factored-r16": {
+      "ttft_ms": {
+        "median": 996.5559997558594,
+        "p95": 1191.5146911621093
+      },
+      "e2e_ms": {
+        "median": 2527.0867919921875,
+        "p95": 3578.8654174804688
+      },
+      "tpot_ms": 24.294139559306796,
+      "throughput_tok_s": 25.32560425023893,
+      "peak_mem_bytes": 7642194944,
+      "cache_bytes_prefill": 34078720,
+      "dense_cache_bytes_analytic": 134217728,
+      "energy_J_per_tok": 7.2893828125
+    },
+    "naive-r32": {
+      "ttft_ms": {
+        "median": 953.9195556640625,
+        "p95": 1190.1073059082032
+      },
+      "e2e_ms": {
+        "median": 2296.8919677734375,
+        "p95": 3126.1085815429688
+      },
+      "tpot_ms": 21.317022414434526,
+      "throughput_tok_s": 27.8637397395927,
+      "peak_mem_bytes": 7733945344,
+      "cache_bytes_prefill": 134217728,
+      "dense_cache_bytes_analytic": 134217728,
+      "energy_J_per_tok": 6.93744140625
+    },
+    "factored-r32": {
+      "ttft_ms": {
+        "median": 970.8935852050781,
+        "p95": 1050.0560821533202
+      },
+      "e2e_ms": {
+        "median": 2359.572021484375,
+        "p95": 2621.7293090820312
+      },
+      "tpot_ms": 22.04251486157614,
+      "throughput_tok_s": 27.12356283989944,
+      "peak_mem_bytes": 7676273664,
+      "cache_bytes_prefill": 68157440,
+      "dense_cache_bytes_analytic": 134217728,
+      "energy_J_per_tok": 6.90362890625
+    }
+  }
+}
