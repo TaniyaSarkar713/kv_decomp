@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "n_problems": 100,
+    "n_shots": 8,
+    "W": 64,
+    "group": 32
+  },
+  "full": {
+    "accuracy": 0.39,
+    "correct": 39,
+    "n": 100,
+    "unparsed": 0,
+    "mean_new_tokens": 150.75,
+    "bytes_per_tok_layer": 2048.0,
+    "compression": 1.0
+  },
+  "int4": {
+    "accuracy": 0.4,
+    "correct": 40,
+    "n": 100,
+    "unparsed": 0,
+    "mean_new_tokens": 141.82,
+    "bytes_per_tok_layer": 651.106575030668,
+    "compression": 3.14541440455203
+  },
+  "int2": {
+    "accuracy": 0.16,
+    "correct": 16,
+    "n": 100,
+    "unparsed": 11,
+    "mean_new_tokens": 91.73,
+    "bytes_per_tok_layer": 397.1259523089712,
+    "compression": 5.157054048199345
+  },
+  "klat16-vint4-infK5": {
+    "accuracy": 0.45,
+    "correct": 45,
+    "n": 100,
+    "unparsed": 0,
+    "mean_new_tokens": 138.1,
+    "bytes_per_tok_layer": 678.4,
+    "compression": 3.018867924528302
+  }
+}

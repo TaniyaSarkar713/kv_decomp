@@ -1,0 +1,667 @@
+{
+  "meta": {
+    "W": 64,
+    "t_eval": 256,
+    "contexts": [
+      2048,
+      8192
+    ],
+    "offsets": [
+      0,
+      40000,
+      80000
+    ],
+    "group": 32,
+    "note": "bytes/token/layer measured physical (packed uint8 + fp16 stats; latent coeffs bf16 + residual values/indices); fixed latent bases are weight-side, amortized, excluded"
+  },
+  "rows": [
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": -2.8001734264648803e-10,
+      "ppl": 12.07300588840786
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.10625225305557251,
+      "ppl": 13.358384643354519
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.003888459410518408,
+      "ppl": 12.045665911154279
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0031588380225002766,
+      "ppl": 12.048601361354201
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0016720079584047198,
+      "ppl": 12.061839872578375
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 0.8671457767486572,
+      "ppl": 30.501980166438905
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.8,
+      "kl": 0.06372770667076111,
+      "ppl": 12.757373752232647
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.4654952883720398,
+      "ppl": 20.31281900525439
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.018259931355714798,
+      "ppl": 12.233656975231314
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.6205103993415833,
+      "ppl": 24.088540532854584
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.053579431027173996,
+      "ppl": 12.570820176435614
+    },
+    {
+      "ctx": 2048,
+      "offset": 0,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.04872449114918709,
+      "ppl": 12.579547812567519
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": -5.573606909337059e-09,
+      "ppl": 20.658167102918224
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.1457863748073578,
+      "ppl": 24.93886241155073
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.0045407116413116455,
+      "ppl": 20.711606555330665
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.003465722780674696,
+      "ppl": 20.606683269139765
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0018698055064305663,
+      "ppl": 20.733893999800895
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 1.1773818731307983,
+      "ppl": 61.96334775796541
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.8,
+      "kl": 0.07548598200082779,
+      "ppl": 21.09390319766888
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.6503933668136597,
+      "ppl": 37.90325321996597
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.027858130633831024,
+      "ppl": 20.793487471684927
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.8650660514831543,
+      "ppl": 43.34270190299989
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.06652221083641052,
+      "ppl": 21.03581584614529
+    },
+    {
+      "ctx": 2048,
+      "offset": 40000,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.06608366221189499,
+      "ppl": 21.285941211569597
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": -2.1510198067176134e-09,
+      "ppl": 10.789203945939013
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.15675759315490723,
+      "ppl": 13.288019004438098
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.005072194151580334,
+      "ppl": 10.941181388509232
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.00526412483304739,
+      "ppl": 10.869991057421732
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0019021311309188604,
+      "ppl": 10.833973090252854
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 1.2912687063217163,
+      "ppl": 36.203020731028715
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.8,
+      "kl": 0.12826424837112427,
+      "ppl": 11.811031368852932
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.680679440498352,
+      "ppl": 19.167110402806784
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.05485770106315613,
+      "ppl": 11.298346540290307
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.9836156368255615,
+      "ppl": 26.383635231483346
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.10337737947702408,
+      "ppl": 11.72330343584007
+    },
+    {
+      "ctx": 2048,
+      "offset": 80000,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.12654991447925568,
+      "ppl": 11.658325892518166
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": 5.125081470325199e-10,
+      "ppl": 7.623957089174057
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.16429659724235535,
+      "ppl": 8.84125272359198
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.005019512493163347,
+      "ppl": 7.730220638963261
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.003657635999843478,
+      "ppl": 7.678064597307454
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.001497440505772829,
+      "ppl": 7.636163570605606
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 1.3030565977096558,
+      "ppl": 29.13201829576718
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.7999999999998,
+      "kl": 0.08857335895299911,
+      "ppl": 7.790598754655945
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.6212338209152222,
+      "ppl": 14.474642548950536
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.04819278419017792,
+      "ppl": 7.612661232700163
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.9721896648406982,
+      "ppl": 20.556655894377148
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.07801434397697449,
+      "ppl": 7.666036047973158
+    },
+    {
+      "ctx": 8192,
+      "offset": 0,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.07662741839885712,
+      "ppl": 7.822809732202148
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": 1.348732237005379e-10,
+      "ppl": 9.82098654098471
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.13316337764263153,
+      "ppl": 11.144569396700053
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.004510333761572838,
+      "ppl": 9.825773744920053
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0035903984680771828,
+      "ppl": 9.814240639577957
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.0015918598510324955,
+      "ppl": 9.905506556257043
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 0.8898482322692871,
+      "ppl": 26.736478315234677
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.7999999999998,
+      "kl": 0.1641521006822586,
+      "ppl": 11.24705606146737
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.4045727252960205,
+      "ppl": 14.862454995390452
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.07088521122932434,
+      "ppl": 9.98047861207456
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.6882895231246948,
+      "ppl": 21.05460162234776
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.14511263370513916,
+      "ppl": 11.159977773189707
+    },
+    {
+      "ctx": 8192,
+      "offset": 40000,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.1460867077112198,
+      "ppl": 10.979877522980072
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "dense",
+      "family": "ref",
+      "bytes_per_tok_layer": 2048.0,
+      "kl": -7.231909515681423e-11,
+      "ppl": 14.103444358672142
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Kint2/Vint2",
+      "family": "quant",
+      "bytes_per_tok_layer": 384.0,
+      "kl": 0.15952450037002563,
+      "ppl": 15.994710011482583
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Kint4/Vint4",
+      "family": "quant",
+      "bytes_per_tok_layer": 640.0,
+      "kl": 0.004936614539474249,
+      "ppl": 14.102704622976479
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Kint4/Vnat",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.004028786905109882,
+      "ppl": 14.111072623451742
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Knat/Vint4",
+      "family": "oneside",
+      "bytes_per_tok_layer": 1344.0,
+      "kl": 0.00184095767326653,
+      "ppl": 14.036474453945859
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat16/Vlat16",
+      "family": "symlat",
+      "bytes_per_tok_layer": 512.0,
+      "kl": 1.3867485523223877,
+      "ppl": 68.40697782714993
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat16/Vlat16+inf5",
+      "family": "symlat",
+      "bytes_per_tok_layer": 716.7999999999998,
+      "kl": 0.1933656930923462,
+      "ppl": 16.60937870174024
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat32/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 832.0,
+      "kl": 0.608116626739502,
+      "ppl": 27.120065961113074
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat32/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 934.3999999999997,
+      "kl": 0.05404640734195709,
+      "ppl": 14.204844235472228
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat16/Vint4",
+      "family": "asym",
+      "bytes_per_tok_layer": 576.0,
+      "kl": 0.9796963334083557,
+      "ppl": 44.79055022766687
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat16/Vint4+infK5",
+      "family": "asym",
+      "bytes_per_tok_layer": 678.3999999999999,
+      "kl": 0.1548510193824768,
+      "ppl": 15.7699988985607
+    },
+    {
+      "ctx": 8192,
+      "offset": 80000,
+      "config": "Klat32/Vlat8+inf5",
+      "family": "vlow",
+      "bytes_per_tok_layer": 844.7999999999998,
+      "kl": 0.17988663911819458,
+      "ppl": 16.474792473184884
+    }
+  ]
+}

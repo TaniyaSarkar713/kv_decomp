@@ -1,0 +1,624 @@
+{
+  "model": "unsloth/Llama-3.2-1B-Instruct",
+  "device": "cuda",
+  "dtype": "torch.bfloat16",
+  "prompt_tokens": 256,
+  "architecture": {
+    "layers": 16,
+    "hidden_size": 2048,
+    "query_heads": 32,
+    "kv_heads": 8,
+    "queries_per_kv_head": 4,
+    "head_dim": 64,
+    "cache_shape_per_layer": [
+      1,
+      8,
+      256,
+      64
+    ],
+    "kv_bytes_per_token": 32768
+  },
+  "rank_summary": [
+    {
+      "layer": 0,
+      "K90_mean": 16.125,
+      "K90_min": 10,
+      "K90_max": 26,
+      "K95_mean": 24.25,
+      "K95_min": 19,
+      "K95_max": 37,
+      "K99_mean": 41.25,
+      "K99_min": 35,
+      "K99_max": 53,
+      "V90_mean": 35.0,
+      "V90_min": 26,
+      "V90_max": 43,
+      "V95_mean": 44.375,
+      "V95_min": 37,
+      "V95_max": 51,
+      "V99_mean": 57.5,
+      "V99_min": 54,
+      "V99_max": 61
+    },
+    {
+      "layer": 1,
+      "K90_mean": 20.25,
+      "K90_min": 11,
+      "K90_max": 30,
+      "K95_mean": 28.375,
+      "K95_min": 18,
+      "K95_max": 38,
+      "K99_mean": 45.25,
+      "K99_min": 32,
+      "K99_max": 50,
+      "V90_mean": 38.0,
+      "V90_min": 30,
+      "V90_max": 43,
+      "V95_mean": 47.0,
+      "V95_min": 41,
+      "V95_max": 51,
+      "V99_mean": 58.625,
+      "V99_min": 56,
+      "V99_max": 60
+    },
+    {
+      "layer": 2,
+      "K90_mean": 22.75,
+      "K90_min": 17,
+      "K90_max": 28,
+      "K95_mean": 32.25,
+      "K95_min": 26,
+      "K95_max": 38,
+      "K99_mean": 50.375,
+      "K99_min": 47,
+      "K99_max": 54,
+      "V90_mean": 38.5,
+      "V90_min": 33,
+      "V90_max": 44,
+      "V95_mean": 47.75,
+      "V95_min": 43,
+      "V95_max": 52,
+      "V99_mean": 59.25,
+      "V99_min": 57,
+      "V99_max": 61
+    },
+    {
+      "layer": 3,
+      "K90_mean": 16.75,
+      "K90_min": 13,
+      "K90_max": 22,
+      "K95_mean": 24.75,
+      "K95_min": 20,
+      "K95_max": 31,
+      "K99_mean": 44.5,
+      "K99_min": 39,
+      "K99_max": 50,
+      "V90_mean": 39.375,
+      "V90_min": 34,
+      "V90_max": 44,
+      "V95_mean": 48.375,
+      "V95_min": 44,
+      "V95_max": 51,
+      "V99_mean": 59.5,
+      "V99_min": 58,
+      "V99_max": 61
+    },
+    {
+      "layer": 4,
+      "K90_mean": 17.375,
+      "K90_min": 14,
+      "K90_max": 26,
+      "K95_mean": 25.125,
+      "K95_min": 20,
+      "K95_max": 35,
+      "K99_mean": 44.375,
+      "K99_min": 41,
+      "K99_max": 49,
+      "V90_mean": 37.125,
+      "V90_min": 30,
+      "V90_max": 42,
+      "V95_mean": 46.5,
+      "V95_min": 41,
+      "V95_max": 50,
+      "V99_mean": 59.0,
+      "V99_min": 57,
+      "V99_max": 60
+    },
+    {
+      "layer": 5,
+      "K90_mean": 17.75,
+      "K90_min": 6,
+      "K90_max": 22,
+      "K95_mean": 26.375,
+      "K95_min": 13,
+      "K95_max": 33,
+      "K99_mean": 46.0,
+      "K99_min": 35,
+      "K99_max": 52,
+      "V90_mean": 32.875,
+      "V90_min": 30,
+      "V90_max": 37,
+      "V95_mean": 43.125,
+      "V95_min": 40,
+      "V95_max": 46,
+      "V99_mean": 57.5,
+      "V99_min": 56,
+      "V99_max": 59
+    },
+    {
+      "layer": 6,
+      "K90_mean": 17.0,
+      "K90_min": 12,
+      "K90_max": 22,
+      "K95_mean": 25.25,
+      "K95_min": 20,
+      "K95_max": 33,
+      "K99_mean": 43.375,
+      "K99_min": 31,
+      "K99_max": 52,
+      "V90_mean": 34.875,
+      "V90_min": 24,
+      "V90_max": 40,
+      "V95_mean": 44.5,
+      "V95_min": 35,
+      "V95_max": 49,
+      "V99_mean": 58.0,
+      "V99_min": 53,
+      "V99_max": 60
+    },
+    {
+      "layer": 7,
+      "K90_mean": 17.0,
+      "K90_min": 10,
+      "K90_max": 22,
+      "K95_mean": 27.0,
+      "K95_min": 19,
+      "K95_max": 33,
+      "K99_mean": 46.875,
+      "K99_min": 39,
+      "K99_max": 53,
+      "V90_mean": 35.875,
+      "V90_min": 33,
+      "V90_max": 38,
+      "V95_mean": 45.5,
+      "V95_min": 43,
+      "V95_max": 47,
+      "V99_mean": 58.375,
+      "V99_min": 57,
+      "V99_max": 59
+    },
+    {
+      "layer": 8,
+      "K90_mean": 15.25,
+      "K90_min": 14,
+      "K90_max": 19,
+      "K95_mean": 25.0,
+      "K95_min": 20,
+      "K95_max": 27,
+      "K99_mean": 45.875,
+      "K99_min": 39,
+      "K99_max": 49,
+      "V90_mean": 34.75,
+      "V90_min": 31,
+      "V90_max": 41,
+      "V95_mean": 44.25,
+      "V95_min": 41,
+      "V95_max": 49,
+      "V99_mean": 58.125,
+      "V99_min": 57,
+      "V99_max": 60
+    },
+    {
+      "layer": 9,
+      "K90_mean": 14.5,
+      "K90_min": 10,
+      "K90_max": 18,
+      "K95_mean": 24.0,
+      "K95_min": 21,
+      "K95_max": 27,
+      "K99_mean": 44.5,
+      "K99_min": 43,
+      "K99_max": 46,
+      "V90_mean": 36.125,
+      "V90_min": 29,
+      "V90_max": 39,
+      "V95_mean": 45.5,
+      "V95_min": 40,
+      "V95_max": 48,
+      "V99_mean": 58.5,
+      "V99_min": 56,
+      "V99_max": 60
+    },
+    {
+      "layer": 10,
+      "K90_mean": 17.875,
+      "K90_min": 14,
+      "K90_max": 23,
+      "K95_mean": 26.5,
+      "K95_min": 22,
+      "K95_max": 31,
+      "K99_mean": 45.875,
+      "K99_min": 41,
+      "K99_max": 49,
+      "V90_mean": 36.0,
+      "V90_min": 30,
+      "V90_max": 44,
+      "V95_mean": 45.25,
+      "V95_min": 40,
+      "V95_max": 51,
+      "V99_mean": 58.375,
+      "V99_min": 56,
+      "V99_max": 61
+    },
+    {
+      "layer": 11,
+      "K90_mean": 14.5,
+      "K90_min": 11,
+      "K90_max": 18,
+      "K95_mean": 23.75,
+      "K95_min": 21,
+      "K95_max": 29,
+      "K99_mean": 44.375,
+      "K99_min": 39,
+      "K99_max": 49,
+      "V90_mean": 36.75,
+      "V90_min": 28,
+      "V90_max": 42,
+      "V95_mean": 46.0,
+      "V95_min": 38,
+      "V95_max": 50,
+      "V99_mean": 58.75,
+      "V99_min": 55,
+      "V99_max": 60
+    },
+    {
+      "layer": 12,
+      "K90_mean": 17.5,
+      "K90_min": 12,
+      "K90_max": 22,
+      "K95_mean": 26.125,
+      "K95_min": 20,
+      "K95_max": 30,
+      "K99_mean": 45.25,
+      "K99_min": 38,
+      "K99_max": 50,
+      "V90_mean": 35.0,
+      "V90_min": 25,
+      "V90_max": 43,
+      "V95_mean": 44.625,
+      "V95_min": 36,
+      "V95_max": 51,
+      "V99_mean": 57.875,
+      "V99_min": 54,
+      "V99_max": 60
+    },
+    {
+      "layer": 13,
+      "K90_mean": 17.75,
+      "K90_min": 11,
+      "K90_max": 22,
+      "K95_mean": 26.625,
+      "K95_min": 17,
+      "K95_max": 30,
+      "K99_mean": 45.75,
+      "K99_min": 31,
+      "K99_max": 49,
+      "V90_mean": 34.0,
+      "V90_min": 21,
+      "V90_max": 42,
+      "V95_mean": 43.75,
+      "V95_min": 32,
+      "V95_max": 50,
+      "V99_mean": 57.75,
+      "V99_min": 52,
+      "V99_max": 61
+    },
+    {
+      "layer": 14,
+      "K90_mean": 17.0,
+      "K90_min": 14,
+      "K90_max": 21,
+      "K95_mean": 25.75,
+      "K95_min": 21,
+      "K95_max": 30,
+      "K99_mean": 44.5,
+      "K99_min": 37,
+      "K99_max": 49,
+      "V90_mean": 39.125,
+      "V90_min": 28,
+      "V90_max": 44,
+      "V95_mean": 47.875,
+      "V95_min": 39,
+      "V95_max": 52,
+      "V99_mean": 59.125,
+      "V99_min": 55,
+      "V99_max": 61
+    },
+    {
+      "layer": 15,
+      "K90_mean": 18.0,
+      "K90_min": 14,
+      "K90_max": 22,
+      "K95_mean": 27.125,
+      "K95_min": 21,
+      "K95_max": 31,
+      "K99_mean": 46.0,
+      "K99_min": 39,
+      "K99_max": 51,
+      "V90_mean": 39.375,
+      "V90_min": 30,
+      "V90_max": 44,
+      "V95_mean": 48.25,
+      "V95_min": 41,
+      "V95_max": 52,
+      "V99_mean": 59.75,
+      "V99_min": 57,
+      "V99_max": 61
+    }
+  ],
+  "selected_layer": 8,
+  "selected_head": 0,
+  "comparisons": {
+    "K": {
+      "per_head_svd": [
+        {
+          "rank": 4,
+          "stored_scalars": 10240,
+          "compression": 12.8,
+          "relative_error": 0.5046292817635979
+        },
+        {
+          "rank": 8,
+          "stored_scalars": 20480,
+          "compression": 6.4,
+          "relative_error": 0.4138652403616006
+        },
+        {
+          "rank": 16,
+          "stored_scalars": 40960,
+          "compression": 3.2,
+          "relative_error": 0.30172097188011965
+        },
+        {
+          "rank": 32,
+          "stored_scalars": 81920,
+          "compression": 1.6,
+          "relative_error": 0.17227853739606294
+        },
+        {
+          "rank": 48,
+          "stored_scalars": 122880,
+          "compression": 1.0666666666666667,
+          "relative_error": 0.08954604208084102
+        }
+      ],
+      "flattened_svd": [
+        {
+          "matched_to_svd_rank": 4,
+          "rank": 13,
+          "stored_scalars": 9984,
+          "compression": 13.128205128205128,
+          "relative_error": 0.39037421759417984
+        },
+        {
+          "matched_to_svd_rank": 8,
+          "rank": 26,
+          "stored_scalars": 19968,
+          "compression": 6.564102564102564,
+          "relative_error": 0.2967337221985412
+        },
+        {
+          "matched_to_svd_rank": 16,
+          "rank": 53,
+          "stored_scalars": 40704,
+          "compression": 3.220125786163522,
+          "relative_error": 0.20015020094820218
+        },
+        {
+          "matched_to_svd_rank": 32,
+          "rank": 106,
+          "stored_scalars": 81408,
+          "compression": 1.610062893081761,
+          "relative_error": 0.11136987806674023
+        },
+        {
+          "matched_to_svd_rank": 48,
+          "rank": 160,
+          "stored_scalars": 122880,
+          "compression": 1.0666666666666667,
+          "relative_error": 0.06172751835212251
+        }
+      ],
+      "tucker": [
+        {
+          "matched_to_svd_rank": 4,
+          "ranks": [
+            8,
+            14,
+            37
+          ],
+          "stored_scalars": 10160,
+          "compression": 12.900787401574803,
+          "relative_error": 0.41243113029545414
+        },
+        {
+          "matched_to_svd_rank": 8,
+          "ranks": [
+            8,
+            25,
+            53
+          ],
+          "stored_scalars": 20456,
+          "compression": 6.407508799374266,
+          "relative_error": 0.32014135114743936
+        },
+        {
+          "matched_to_svd_rank": 16,
+          "ranks": [
+            8,
+            49,
+            62
+          ],
+          "stored_scalars": 40880,
+          "compression": 3.2062622309197653,
+          "relative_error": 0.21415725615590822
+        },
+        {
+          "matched_to_svd_rank": 32,
+          "ranks": [
+            8,
+            101,
+            64
+          ],
+          "stored_scalars": 81728,
+          "compression": 1.6037588097102584,
+          "relative_error": 0.1169856558426849
+        },
+        {
+          "matched_to_svd_rank": 48,
+          "ranks": [
+            8,
+            154,
+            64
+          ],
+          "stored_scalars": 122432,
+          "compression": 1.0705697856769472,
+          "relative_error": 0.06562843313773765
+        }
+      ]
+    },
+    "V": {
+      "per_head_svd": [
+        {
+          "rank": 4,
+          "stored_scalars": 10240,
+          "compression": 12.8,
+          "relative_error": 0.7901736263923993
+        },
+        {
+          "rank": 8,
+          "stored_scalars": 20480,
+          "compression": 6.4,
+          "relative_error": 0.6833684495493687
+        },
+        {
+          "rank": 16,
+          "stored_scalars": 40960,
+          "compression": 3.2,
+          "relative_error": 0.5371648586399393
+        },
+        {
+          "rank": 32,
+          "stored_scalars": 81920,
+          "compression": 1.6,
+          "relative_error": 0.33847163527523955
+        },
+        {
+          "rank": 48,
+          "stored_scalars": 122880,
+          "compression": 1.0666666666666667,
+          "relative_error": 0.1884654936233212
+        }
+      ],
+      "flattened_svd": [
+        {
+          "matched_to_svd_rank": 4,
+          "rank": 13,
+          "stored_scalars": 9984,
+          "compression": 13.128205128205128,
+          "relative_error": 0.6821069297445227
+        },
+        {
+          "matched_to_svd_rank": 8,
+          "rank": 26,
+          "stored_scalars": 19968,
+          "compression": 6.564102564102564,
+          "relative_error": 0.555294993676869
+        },
+        {
+          "matched_to_svd_rank": 16,
+          "rank": 53,
+          "stored_scalars": 40704,
+          "compression": 3.220125786163522,
+          "relative_error": 0.4051743719518227
+        },
+        {
+          "matched_to_svd_rank": 32,
+          "rank": 106,
+          "stored_scalars": 81408,
+          "compression": 1.610062893081761,
+          "relative_error": 0.2401125218943635
+        },
+        {
+          "matched_to_svd_rank": 48,
+          "rank": 160,
+          "stored_scalars": 122880,
+          "compression": 1.0666666666666667,
+          "relative_error": 0.1365717506330789
+        }
+      ],
+      "tucker": [
+        {
+          "matched_to_svd_rank": 4,
+          "ranks": [
+            8,
+            14,
+            37
+          ],
+          "stored_scalars": 10160,
+          "compression": 12.900787401574803,
+          "relative_error": 0.7139523477547377
+        },
+        {
+          "matched_to_svd_rank": 8,
+          "ranks": [
+            8,
+            25,
+            53
+          ],
+          "stored_scalars": 20456,
+          "compression": 6.407508799374266,
+          "relative_error": 0.5881429238582936
+        },
+        {
+          "matched_to_svd_rank": 16,
+          "ranks": [
+            8,
+            49,
+            62
+          ],
+          "stored_scalars": 40880,
+          "compression": 3.2062622309197653,
+          "relative_error": 0.4304908179080375
+        },
+        {
+          "matched_to_svd_rank": 32,
+          "ranks": [
+            8,
+            101,
+            64
+          ],
+          "stored_scalars": 81728,
+          "compression": 1.6037588097102584,
+          "relative_error": 0.25195277014419054
+        },
+        {
+          "matched_to_svd_rank": 48,
+          "ranks": [
+            8,
+            154,
+            64
+          ],
+          "stored_scalars": 122432,
+          "compression": 1.0705697856769472,
+          "relative_error": 0.14591360153792904
+        }
+      ]
+    }
+  },
+  "notes": [
+    "Cached keys are post-RoPE in this Transformers Llama implementation.",
+    "Compression ratios count stored scalars, not kernel metadata or physical packing.",
+    "Reconstruction error is structural evidence, not downstream-quality evidence."
+  ]
+}

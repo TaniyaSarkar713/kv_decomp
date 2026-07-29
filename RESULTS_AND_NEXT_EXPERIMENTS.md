@@ -53,8 +53,20 @@ pipeline.
 
 ### 2.1 Structural premise
 
-The cache has 16 layers and per-layer K/V shape `[1, 8, S, 64]`. It occupies 32 KiB
-per token across all layers.
+The cache has 16 layers and per-layer K/V shape `[1, 8, S, 64]`, read as
+`[batch, kv_heads, sequence_length, head_dim]`. **S is the sequence length**: the
+number of tokens cached so far (prompt plus generated tokens). It is the only
+dimension that grows during decoding, by one per token. The 8 KV heads come from
+grouped-query attention (32 query heads share 8 KV heads).
+
+Per-token memory in bf16 (2 bytes/element): one layer stores
+8 heads x 64 dims x 2 B = 1 KiB for K and the same for V, so 2 KiB per layer,
+and 16 layers x 2 KiB = **32 KiB per token across all layers**. The total cache
+is therefore `S x 32 KiB`: 16 MiB at S = 512, 64 MiB at 2,048, 128 MiB at 4,096,
+256 MiB at 8,192, and 4 GiB at the model's 131,072-token context limit — more
+than the 1B model's own weights (~2.5 GiB in bf16), which is the memory-wall
+motivation for compressing the cache. (Cross-check: the stage-3 table below
+measures 16 MiB dense at context 512 and 128 MiB at 4,096.)
 
 | Quantity | Keys | Values |
 |---|---:|---:|
