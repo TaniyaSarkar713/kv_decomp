@@ -390,15 +390,204 @@ The final choice follows strict Pareto reasoning. Relative to uniform K4/V4, the
 
 ---
 
+\newpage
+
 ## 7. Recommended next work
 
-For engineering, implement and validate a packed K4/V4 path that keeps the old cache packed on GPU, fuses dequantization with attention, optionally retains a small exact recent window, and measures peak allocation, bytes read, encoding cost, time to first token, time per output token, and energy against an established INT4/KIVI baseline.
+### 7.1 Engineering: make K4/V4 genuinely packed
 
-Before deployment claims, evaluate in one pinned process on the full GSM8K set, long-context retrieval, instruction following, multiple natural-text domains, longer valid contexts, Llama-3.2-1B/3B, and a second architecture. Use paired comparisons, predeclared non-inferiority margins, document-level bootstrap intervals, tail errors, and complete byte accounting including scales, masks, indices, padding, hot windows, and workspace.
+The experiments established that K4/V4 had the best representation-level tradeoff. The next engineering question is whether it also saves memory and time when attention actually runs. The old cache must remain four-bit on the GPU; writing a dense BF16 copy before every attention call would restore most of the memory traffic the codec is meant to remove.
 
-For new research, do not add tensor modes to the same reconstruction objective. A credible new hypothesis should instead optimize held-out score or attention-output error, improve causal prediction of future importance, modify training or architecture, enable direct compressed-domain execution, or provide per-query error certification and refinement. It should beat K4/V4 at matched complete bytes before kernel development.
+For a group $G$ of cache values, a simple unsigned affine four-bit codec is
+
+\[
+s_G=\frac{x_{\max,G}-x_{\min,G}}{15},\qquad
+c_j=\operatorname{clip}_{[0,15]}
+\left(\operatorname{round}\frac{x_j-x_{\min,G}}{s_G}\right),
+\qquad
+\widehat x_j=x_{\min,G}+s_Gc_j.
+\]
+
+Each code $c_j$ uses four bits, so two codes fit in one byte. The scale and minimum are stored once per group. Other symmetric or asymmetric INT4 layouts are possible, but the candidate and baseline must use the same grouping and include all metadata in the byte count.
+
+The attention kernel should read a small tile of packed keys and values, unpack and dequantize it in registers or shared memory, and immediately use it in
+
+\[
+z_i=\frac{q^\top\widehat k_i}{\sqrt d},\qquad
+\widehat y=\sum_i\operatorname{softmax}(z)_i\widehat v_i.
+\]
+
+It should never write the full $\widehat K$ or $\widehat V$ to global GPU memory. A numerically stable tiled softmax can maintain a running maximum $m$, normalization $\ell$, and unnormalized output $o$. For a new tile $T$,
+
+\[
+\begin{aligned}
+m'&=\max\!\left(m,\max_{j\in T}z_j\right),\\
+\ell'&=e^{m-m'}\ell+\sum_{j\in T}e^{z_j-m'},\\
+o'&=e^{m-m'}o+\sum_{j\in T}e^{z_j-m'}\widehat v_j,
+\end{aligned}
+\qquad
+\widehat y=\frac{o}{\ell}.
+\]
+
+This fuses dequantization with attention: a cache tile is decoded only while it is being consumed.
+
+A small exact recent window of $W$ tokens may remain in BF16 because recent tokens often receive high attention and have not yet amortized their encoding cost. For one layer with $H$ KV heads and $d=d_v$, an exact K/V token costs
+
+\[
+b_{16}=2\;(\text{K,V})\times H\times d\times2\text{ bytes}=4Hd,
+\]
+
+which is 2,048 bytes for $H=8,d=64$. The four-bit K/V payload costs $b_{4,\mathrm{payload}}=Hd=512$ bytes/token before metadata. At context $n$, complete resident cache memory is therefore
+
+\[
+B_{\mathrm{resident}}
+=(n-W)(b_{4,\mathrm{payload}}+b_{4,\mathrm{metadata}})
++Wb_{16}+B_{\mathrm{padding}},
+\]
+
+and the end-to-end peak is
+
+\[
+B_{\mathrm{peak}}=\max_t
+\left(B_{\mathrm{model}}+B_{\mathrm{resident}}(t)+B_{\mathrm{workspace}}(t)
++B_{\mathrm{allocator}}(t)\right).
+\]
+
+This distinction matters: “512 payload bytes” is not a system memory result if scales, padding, a hot window, or a large temporary buffer are omitted.
+
+The implementation should be compared with dense BF16 and an established packed INT4/KIVI path using identical prompts, batch sizes, and generation lengths. Report:
+
+- **encoding cost:** time and energy to quantize each block when it leaves the hot window;
+- **bytes read per generated token:** measured with a GPU profiler, not inferred only from tensor shapes;
+- **time to first token (TTFT):** request start to the first generated token, including prefill;
+- **time per output token (TPOT):** $(t_{\mathrm{last}}-t_{\mathrm{first}})/(N_{\mathrm{generated}}-1)$;
+- **energy per token:** $\int P(t)\,dt/N_{\mathrm{generated}}$, with the same idle-power convention for every method;
+- **peak allocated and reserved memory:** measured over the entire request.
+
+A useful engineering result must show both a quality pass and a real reduction in peak memory or memory traffic without an unacceptable TTFT/TPOT regression.
+
+### 7.2 Validation: show that quality is not meaningfully worse
+
+“Pinned process” means that dense and compressed runs share one model instance and exactly the same weight revision, tokenizer, prompts, seeds, batch order, decoding settings, software versions, and fixed kernel implementations. This prevents the 39%-to-45% baseline drift observed across earlier GSM8K runs from being mistaken for a codec effect.
+
+Use the full GSM8K set for multi-step reasoning, long-context retrieval to test whether distant information is still found, instruction-following tests, and several natural-text domains. Repeat at increasing valid context lengths on Llama-3.2-1B, Llama-3.2-3B, and at least one different architecture. This separates a general compression effect from an accident of one model or dataset.
+
+Every comparison should be paired: item $j$ is evaluated once with the baseline and once with the compressed cache. For accuracy, define
+
+\[
+d_j=\mathbf1\{\text{compressed correct on }j\}
+-\mathbf1\{\text{baseline correct on }j\},
+\qquad
+\overline d=\frac1N\sum_{j=1}^N d_j.
+\]
+
+Choose an acceptable degradation $\delta_{\mathrm{acc}}>0$ before seeing the results. Non-inferiority is supported only if the lower confidence bound satisfies
+
+\[
+\operatorname{LCB}_{1-\alpha}(\overline d)>-\delta_{\mathrm{acc}}.
+\]
+
+For an error or loss, where smaller is better, use paired differences $d_j=L_{\mathrm{compressed},j}-L_{\mathrm{baseline},j}$ and require
+
+\[
+\operatorname{UCB}_{1-\alpha}(\overline d)<\delta_{\mathrm{loss}}.
+\]
+
+Thus “the difference was not statistically significant” is not enough; the interval must exclude a degradation larger than the predeclared tolerance.
+
+Token errors within a document are correlated. Bootstrap whole documents or context windows: sample windows with replacement, keep all positions within each sampled window, recompute the paired difference, and use the bootstrap quantiles as the confidence interval. Also report the median and 95th/99th percentiles of attention KL and relative output error. A small mean can hide rare large failures that dominate autoregressive generation.
+
+Finally, report complete physical bytes:
+
+\[
+B_{\mathrm{complete}}=
+B_{\mathrm{payload}}+B_{\mathrm{scales/minima}}+B_{\mathrm{masks}}
++B_{\mathrm{indices}}+B_{\mathrm{padding}}+B_{\mathrm{hot}}
++B_{\mathrm{workspace}}.
+\]
+
+Quality comparisons should be made at matched $B_{\mathrm{complete}}$, not matched nominal bit width.
+
+### 7.3 Research: change the objective, information, or execution model
+
+Adding more tensor modes while still minimizing $\|X-\widehat X\|_F^2$ does not address the demonstrated mismatch. A new method should optimize a quantity closer to how the cache is used. With held-out queries, possible objectives are
+
+\[
+\mathcal L_{\mathrm{score}}
+=\mathbb E_q\frac{\|(K-\widehat K)q\|_2^2}{d},
+\]
+
+\[
+\mathcal L_{\mathrm{attn}}
+=\mathbb E_q D_{\mathrm{KL}}\!\left(
+\operatorname{softmax}\frac{Kq}{\sqrt d}
+\,\middle\|\,
+\operatorname{softmax}\frac{\widehat Kq}{\sqrt d}
+\right),
+\]
+
+or the joint attention-output objective
+
+\[
+\mathcal L_{\mathrm{out}}
+=\mathbb E_q
+\frac{\|V^\top p-\widehat V^\top\widehat p\|_2^2}
+{\|V^\top p\|_2^2+\varepsilon}.
+\]
+
+Queries used to choose ranks, bases, residuals, or bit widths must be separated from the queries used for evaluation.
+
+Another direction is causal prediction of future importance. When a block is compressed at time $t$, the selector may use only history $\mathcal H_t$, not future queries. For group $g$, learn
+
+\[
+I_g(t)=\mathbb E\!\left[\text{future attention loss caused by }g
+\mid \mathcal H_t\right],
+\]
+
+then choose protected groups $S$ by the budgeted problem
+
+\[
+\max_S\sum_{g\in S}I_g(t)
+\quad\text{subject to}\quad
+\sum_{g\in S}b_g\leq B_{\mathrm{repair}}.
+\]
+
+The predictor may be trained on separate sequences where future queries are known, but at deployment it must use only $\mathcal H_t$. Other credible changes include training the model to produce a compressible cache, changing the attention architecture, or computing attention directly from factors rather than reconstructing dense tensors.
+
+A per-query certificate could make an adaptive codec safer. Let
+
+\[
+\eta=\frac{\|E_Kq\|_\infty}{\sqrt d}.
+\]
+
+If the compressed top-score margin $\widehat\gamma$ satisfies $\widehat\gamma>2\eta$, the identity of the exact top-scoring key is guaranteed to be unchanged. Quantization metadata can give a conservative bound without storing dense K: if coordinate $j$ of key $i$ has error at most $\Delta_{ij}$, then
+
+\[
+\eta\leq\max_i\frac1{\sqrt d}\sum_j|q_j|\Delta_{ij}.
+\]
+
+The full output error also obeys
+
+\[
+\|\widehat y-y\|_2
+\leq
+\max_i\|v_i\|_2\,\|\widehat p-p\|_1
++\sum_i\widehat p_i\|e_{v_i}\|_2.
+\]
+
+With $\|E_Kq/\sqrt d\|_\infty\leq\eta$, one conservative softmax bound is
+
+\[
+\|\widehat p-p\|_1\leq\min\{2,e^{2\eta}-1\}.
+\]
+
+If a certificate exceeds a chosen tolerance, the system could fetch an exact residual or refine the affected block from two to four bits. Such refinement must be causal and its extra bytes and latency must be counted.
+
+Before investing in a specialized kernel, test a correctness prototype at matched complete bytes. A candidate advances only if it is uncertainty-aware Pareto competitive with K4/V4: no more bytes with reliably lower error, or fewer bytes while satisfying predeclared non-inferiority bounds. Kernel work then asks whether the representation-level gain survives real execution.
 
 ---
+
+\newpage
 
 ## Appendix A. Metrics
 
